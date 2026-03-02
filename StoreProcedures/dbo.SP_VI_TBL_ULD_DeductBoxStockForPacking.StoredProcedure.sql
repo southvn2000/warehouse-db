@@ -98,7 +98,7 @@ BEGIN
 
 			IF @ItemBoxNumber IS NULL
 			BEGIN
-				SET @Message = 'Can not find box item by ItemTradeUnitID.';
+				SET @Message = 'Can not find box item.';
 				CLOSE cur_TmpBoxCount;
 				DEALLOCATE cur_TmpBoxCount;
 				RETURN;
