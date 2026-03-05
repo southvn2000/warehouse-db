@@ -29,67 +29,40 @@ BEGIN
 		CREATE TABLE #TmpBoxCount
 		(
 			ItemBoxID INT NULL,
-			BoxNumberCount INT NOT NULL
+			BoxNumberCount INT NOT NULL,
+			ULDID INT NULL
 		);
 
-		INSERT INTO #TmpBoxCount (ItemBoxID, BoxNumberCount)
+		INSERT INTO #TmpBoxCount (ItemBoxID, ULDID, BoxNumberCount)
 		SELECT
 			StandardBoxID,
+			ULDID,
 			COUNT(BoxNumber) AS BoxNumberCount
 		FROM @Results
-		GROUP BY StandardBoxID;
-
-		CREATE TABLE #TmpBoxULDStock
-		(
-			RowID INT IDENTITY(1,1) NOT NULL,
-			ULDID INT NOT NULL,
-			ULDBarcode VARCHAR(30) NOT NULL,
-			ULDCurrentLocation VARCHAR(50) NULL,
-			LocationOrderNumber VARCHAR(200) NULL,
-			LocColumnID INT NULL,
-			LocShelfID INT NULL,
-			LocBinID INT NULL,
-			LocSBinID INT NULL,
-			ULDType VARCHAR(30) NULL,
-			TenantCode VARCHAR(10) NULL,
-			WarehouseCode VARCHAR(20) NULL,
-			HoldStatus VARCHAR(20) NULL,
-			CurrentZone VARCHAR(20) NULL,
-			Status VARCHAR(20) NULL,
-			ItemNumber VARCHAR(30) NULL,
-			ItemName VARCHAR(250) NULL,
-			ExpiryDate DATETIME NULL,
-			BatchNumber VARCHAR(30) NULL,
-			CreatedDateTime DATETIME NULL,
-			TotalQty INT NULL
-		);
+		GROUP BY StandardBoxID, ULDID;
 
 		DECLARE @ItemBoxID INT;
 		DECLARE @ItemBoxNumber VARCHAR(50);
 		DECLARE @ItemBoxName VARCHAR(250);
-		DECLARE @ItemPickingCondition VARCHAR(100);
 		DECLARE @BoxNumberCount INT;
-		DECLARE @IsEmpty BIT;
-		DECLARE @CurrentBoxULDID INT;
+		DECLARE @TargetBoxULDID INT;
 		DECLARE @CurrentBoxULDLocation VARCHAR(50);
 		DECLARE @CurrentBoxULDQty INT;
 		DECLARE @DeductQty INT;
-		DECLARE @RemainingDeductQty INT;
 		DECLARE @BoxSequenceNumber INT;
 		DECLARE @BoxTransactionMovement VARCHAR(1000);
 
 		DECLARE cur_TmpBoxCount CURSOR LOCAL FAST_FORWARD FOR
-		SELECT ItemBoxID, BoxNumberCount
+		SELECT ItemBoxID, ULDID, BoxNumberCount
 		FROM #TmpBoxCount;
 
 		OPEN cur_TmpBoxCount;
-		FETCH NEXT FROM cur_TmpBoxCount INTO @ItemBoxID, @BoxNumberCount;
+		FETCH NEXT FROM cur_TmpBoxCount INTO @ItemBoxID, @TargetBoxULDID, @BoxNumberCount;
 
 		WHILE @@FETCH_STATUS = 0
 		BEGIN
 			SELECT @ItemBoxNumber = i.ItemNumber,
-				   @ItemBoxName = i.ItemName,
-				   @ItemPickingCondition = i.PickingCondition
+				   @ItemBoxName = i.ItemName
 			FROM dbo.Items i
 			JOIN dbo.ItemTradeUnit itu ON itu.ItemID = i.ItemID AND itu.Deleted = 0
 			WHERE itu.ItemTradeUnitID = @ItemBoxID
@@ -104,129 +77,81 @@ BEGIN
 				RETURN;
 			END
 
-			SET @IsEmpty = 0;
-			EXEC [dbo].[SP_VI_TBL_ULD_CheckHavingStockOfTenantAtWarehouse]
-				@WarehouseCode = @WarehouseCode,
-				@TenantCode = @TenantCode,
-				@ItemNumber = @ItemBoxNumber,
-				@IsEmpty = @IsEmpty OUTPUT;
+			SELECT
+				@CurrentBoxULDLocation = l.ULDCurrentLocation,
+				@CurrentBoxULDQty = SUM(ul.TransactionQty)
+			FROM dbo.ULD l
+			INNER JOIN dbo.ULDLine ul ON ul.ULDID = l.ULDID AND ul.Deleted = 0
+			WHERE l.ULDID = @TargetBoxULDID
+			  AND l.Deleted = 0
+			  AND l.ULDCurrentLocation IS NOT NULL
+			  AND l.WarehouseCode = @WarehouseCode
+			  AND l.TenantCode = @TenantCode
+			  AND l.ItemNumber = @ItemBoxNumber
+			  AND l.Status NOT IN ('Draft','InActive','Locked')
+			  AND l.HoldStatus IS NULL
+			GROUP BY l.ULDCurrentLocation
+			HAVING SUM(ul.TransactionQty) > 0;
 
-			IF @IsEmpty = 1
+			IF @TargetBoxULDID IS NULL OR ISNULL(@CurrentBoxULDQty, 0) <= 0 OR @CurrentBoxULDQty < @BoxNumberCount
 			BEGIN
-				SET @Message = 'No stock of box item at this Warehouse.';
+				SET @Message = 'Not enough box stock for packing.';
 				CLOSE cur_TmpBoxCount;
 				DEALLOCATE cur_TmpBoxCount;
 				RETURN;
 			END
 
-			SET @RemainingDeductQty = @BoxNumberCount;
+			SET @DeductQty = @BoxNumberCount;
 
-			WHILE @RemainingDeductQty > 0
-			BEGIN
-				DELETE FROM #TmpBoxULDStock;
+			SELECT @BoxSequenceNumber = COUNT(*)
+			FROM dbo.ULDLine
+			WHERE ULDID = @TargetBoxULDID AND Deleted = 0;
 
-				INSERT INTO #TmpBoxULDStock (
-					ULDID,
-					ULDBarcode,
-					ULDCurrentLocation,
-					LocationOrderNumber,
-					LocColumnID,
-					LocShelfID,
-					LocBinID,
-					LocSBinID,
-					ULDType,
-					TenantCode,
-					WarehouseCode,
-					HoldStatus,
-					CurrentZone,
-					Status,
-					ItemNumber,
-					ItemName,
-					ExpiryDate,
-					BatchNumber,
-					CreatedDateTime,
-					TotalQty
-				)
-				EXEC [dbo].[SP_VI_TBL_ULD_GetULDsHavingStockOfTenantAtWarehouse]
-					@TenantCode = @TenantCode,
-					@WarehouseCode = @WarehouseCode,
-					@ItemNumber = @ItemBoxNumber,
-					@PickingCondition = @ItemPickingCondition,
-					@CountOnHold = 0;
+			SET @BoxSequenceNumber = @BoxSequenceNumber + 1;
+			SET @BoxTransactionMovement = 'Deduct ' + CAST(@DeductQty AS VARCHAR(10)) + 'x ' + @ItemBoxNumber + ' for packing order ' + @OrderNumber;
 
-				SELECT TOP 1
-					@CurrentBoxULDID = ULDID,
-					@CurrentBoxULDLocation = ULDCurrentLocation,
-					@CurrentBoxULDQty = TotalQty
-				FROM #TmpBoxULDStock
-				WHERE ISNULL(TotalQty, 0) > 0
-				ORDER BY RowID ASC;
+			INSERT INTO [dbo].[ULDLine] (
+				ULDID,
+				SequenceNumber,
+				SerialNumber,
+				TransactionDate,
+				TransactionUser,
+				TransactionType,
+				TransactionQty,
+				TransactionReference,
+				TransactionMovement,
+				TransactionLocation,
+				ItemNumber,
+				ItemName,
+				Deleted,
+				CreatedDateTime,
+				CreatedBy
+			)
+			VALUES (
+				@TargetBoxULDID,
+				@BoxSequenceNumber,
+				NULL,
+				COALESCE(@CompletedDateTime, GETDATE()),
+				@OperationBy,
+				'Picked',
+				-@DeductQty,
+				@OrderNumber,
+				@BoxTransactionMovement,
+				@CurrentBoxULDLocation,
+				@ItemBoxNumber,
+				@ItemBoxName,
+				0,
+				COALESCE(@CompletedDateTime, GETDATE()),
+				@OperationBy
+			);
 
-				IF @CurrentBoxULDID IS NULL OR ISNULL(@CurrentBoxULDQty, 0) <= 0
-				BEGIN
-					SET @Message = 'Not enough box stock for packing.';
-					CLOSE cur_TmpBoxCount;
-					DEALLOCATE cur_TmpBoxCount;
-					RETURN;
-				END
+			EXEC dbo.SP_VI_TBL_ULDLIne_ResetULDLineSequence
+				@ULDID = @TargetBoxULDID;
 
-				SET @DeductQty = CASE
-					WHEN @RemainingDeductQty > @CurrentBoxULDQty THEN @CurrentBoxULDQty
-					ELSE @RemainingDeductQty
-				END;
+			SET @CurrentBoxULDLocation = NULL;
+			SET @CurrentBoxULDQty = NULL;
 
-				SELECT @BoxSequenceNumber = COUNT(*)
-				FROM dbo.ULDLine
-				WHERE ULDID = @CurrentBoxULDID AND Deleted = 0;
-
-				SET @BoxSequenceNumber = @BoxSequenceNumber + 1;
-				SET @BoxTransactionMovement = 'Deduct ' + CAST(@DeductQty AS VARCHAR(10)) + 'x ' + @ItemBoxNumber + ' for packing order ' + @OrderNumber;
-
-				INSERT INTO [dbo].[ULDLine] (
-					ULDID,
-					SequenceNumber,
-					SerialNumber,
-					TransactionDate,
-					TransactionUser,
-					TransactionType,
-					TransactionQty,
-					TransactionReference,
-					TransactionMovement,
-					TransactionLocation,
-					ItemNumber,
-					ItemName,
-					Deleted,
-					CreatedDateTime,
-					CreatedBy
-				)
-				VALUES (
-					@CurrentBoxULDID,
-					@BoxSequenceNumber,
-					NULL,
-					COALESCE(@CompletedDateTime, GETDATE()),
-					@OperationBy,
-					'Picked',
-					-@DeductQty,
-					@OrderNumber,
-					@BoxTransactionMovement,
-					@CurrentBoxULDLocation,
-					@ItemBoxNumber,
-					@ItemBoxName,
-					0,
-					COALESCE(@CompletedDateTime, GETDATE()),
-					@OperationBy
-				);
-
-				EXEC dbo.SP_VI_TBL_ULDLIne_ResetULDLineSequence
-					@ULDID = @CurrentBoxULDID;
-
-				SET @RemainingDeductQty = @RemainingDeductQty - @DeductQty;
-				SET @CurrentBoxULDID = NULL;
-				SET @CurrentBoxULDLocation = NULL;
-				SET @CurrentBoxULDQty = NULL;
-			END
-
-			FETCH NEXT FROM cur_TmpBoxCount INTO @ItemBoxID, @BoxNumberCount;
+			FETCH NEXT FROM cur_TmpBoxCount INTO @ItemBoxID, @TargetBoxULDID, @BoxNumberCount;
 		END
 
 		CLOSE cur_TmpBoxCount;
