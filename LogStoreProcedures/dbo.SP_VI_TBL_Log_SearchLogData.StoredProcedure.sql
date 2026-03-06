@@ -15,6 +15,9 @@ CREATE PROCEDURE [dbo].[SP_VI_TBL_Log_SearchLogData]
     @LogTable NVARCHAR(200) = NULL,
     @LogStartDate DATETIME,
     @LogEndDate DATETIME,
+	@CallingInterfaceIPAddress NVARCHAR(500) = NULL,
+	@LoggedInUser NVARCHAR(255) = NULL,
+	@TransactionResult NVARCHAR(50) = NULL,
     @PageNumber INT = 1,
     @PageSize INT = 10,
     @OrderBy NVARCHAR(50) = 'LogTableName',
@@ -88,19 +91,31 @@ BEGIN
 				AppName,
 				LogFileName,
 				CallingInterfaceIPAddress,
+				LogFileName,
 				LoggedInUser,
 				FileName,
 				MessageType,
 				TransactionResult,
 				Message,
+				Comment1,
+				Comment2,
+				Comment3,
+				PayloadRequest,
+				PayloadResponse,
+				ResponseStatus,
+				MobileDeviceID,
 				LogTime
 			FROM [dbo].' + QUOTENAME(@LogTable) + N'
 			WHERE LogTime >= @LogStartDate
 			  AND LogTime <= @LogEndDate
+			  AND (@CallingInterfaceIPAddress IS NULL OR LOWER(ISNULL(CallingInterfaceIPAddress, '''')) LIKE ''%'' + LOWER(@CallingInterfaceIPAddress) + ''%'')
+			  AND (@LoggedInUser IS NULL OR LOWER(ISNULL(LoggedInUser, '''')) LIKE ''%'' + LOWER(@LoggedInUser) + ''%'')
+			  AND (@TransactionResult IS NULL OR LOWER(ISNULL(TransactionResult, '''')) LIKE ''%'' + LOWER(@TransactionResult) + ''%'')
 			  AND (
 				@Search IS NULL
 				OR LOWER(ISNULL(CallingInterfaceIPAddress, '''')) LIKE ''%'' + LOWER(@Search) + ''%''
 				OR LOWER(ISNULL(LoggedInUser, '''')) LIKE ''%'' + LOWER(@Search) + ''%''
+				OR LOWER(ISNULL(TransactionResult, '''')) LIKE ''%'' + LOWER(@Search) + ''%''
 				OR LOWER(ISNULL(Message, '''')) LIKE ''%'' + LOWER(@Search) + ''%''
 			  )';
 	END
@@ -112,19 +127,31 @@ BEGIN
 				AppName,
 				LogFileName,
 				CallingInterfaceIPAddress,
+				LogFileName,
 				LoggedInUser,
 				FileName,
 				MessageType,
 				TransactionResult,
 				Message,
+				Comment1,
+				Comment2,
+				Comment3,
+				PayloadRequest,
+				PayloadResponse,
+				ResponseStatus,
+				MobileDeviceID,
 				LogTime
 			FROM [dbo].' + QUOTENAME(TABLE_NAME) + N'
 			WHERE LogTime >= @LogStartDate
 			  AND LogTime <= @LogEndDate
+			  AND (@CallingInterfaceIPAddress IS NULL OR LOWER(ISNULL(CallingInterfaceIPAddress, '''')) LIKE ''%'' + LOWER(@CallingInterfaceIPAddress) + ''%'')
+			  AND (@LoggedInUser IS NULL OR LOWER(ISNULL(LoggedInUser, '''')) LIKE ''%'' + LOWER(@LoggedInUser) + ''%'')
+			  AND (@TransactionResult IS NULL OR LOWER(ISNULL(TransactionResult, '''')) LIKE ''%'' + LOWER(@TransactionResult) + ''%'')
 			  AND (
 				@Search IS NULL
 				OR LOWER(ISNULL(CallingInterfaceIPAddress, '''')) LIKE ''%'' + LOWER(@Search) + ''%''
 				OR LOWER(ISNULL(LoggedInUser, '''')) LIKE ''%'' + LOWER(@Search) + ''%''
+				OR LOWER(ISNULL(TransactionResult, '''')) LIKE ''%'' + LOWER(@Search) + ''%''
 				OR LOWER(ISNULL(Message, '''')) LIKE ''%'' + LOWER(@Search) + ''%''
 			  )'
 		FROM INFORMATION_SCHEMA.TABLES
@@ -158,8 +185,11 @@ BEGIN
 
 	EXEC sp_executesql
 		@CountSQL,
-		N'@Search NVARCHAR(100), @LogStartDate DATETIME, @LogEndDate DATETIME, @TotalRecords INT OUTPUT',
+		N'@Search NVARCHAR(100), @CallingInterfaceIPAddress NVARCHAR(500), @LoggedInUser NVARCHAR(255), @TransactionResult NVARCHAR(50), @LogStartDate DATETIME, @LogEndDate DATETIME, @TotalRecords INT OUTPUT',
 		@Search = @Search,
+		@CallingInterfaceIPAddress = @CallingInterfaceIPAddress,
+		@LoggedInUser = @LoggedInUser,
+		@TransactionResult = @TransactionResult,
 		@LogStartDate = @LogStartDate,
 		@LogEndDate = @LogEndDate,
 		@TotalRecords = @TotalRecords OUTPUT;
@@ -177,8 +207,11 @@ BEGIN
 
 	EXEC sp_executesql
 		@DataSQL,
-		N'@Search NVARCHAR(100), @LogStartDate DATETIME, @LogEndDate DATETIME, @Offset INT, @PageSize INT',
+		N'@Search NVARCHAR(100), @CallingInterfaceIPAddress NVARCHAR(500), @LoggedInUser NVARCHAR(255), @TransactionResult NVARCHAR(50), @LogStartDate DATETIME, @LogEndDate DATETIME, @Offset INT, @PageSize INT',
 		@Search = @Search,
+		@CallingInterfaceIPAddress = @CallingInterfaceIPAddress,
+		@LoggedInUser = @LoggedInUser,
+		@TransactionResult = @TransactionResult,
 		@LogStartDate = @LogStartDate,
 		@LogEndDate = @LogEndDate,
 		@Offset = @Offset,

@@ -35,11 +35,12 @@ BEGIN
 
 		INSERT INTO #TmpBoxCount (ItemBoxID, ULDID, BoxNumberCount)
 		SELECT
-			StandardBoxID,
-			ULDID,
-			COUNT(BoxNumber) AS BoxNumberCount
-		FROM @Results
-		GROUP BY StandardBoxID, ULDID;
+			r.StandardBoxID,
+			u.ULDID,
+			COUNT(r.BoxNumber) AS BoxNumberCount
+		FROM @Results r
+		LEFT JOIN dbo.ULD u ON u.ULDBarcode = r.ULDBarcode AND u.Deleted = 0		
+		GROUP BY r.StandardBoxID, u.ULDID;
 
 		DECLARE @ItemBoxID INT;
 		DECLARE @ItemBoxNumber VARCHAR(50);
