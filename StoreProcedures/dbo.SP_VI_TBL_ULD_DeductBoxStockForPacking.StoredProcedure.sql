@@ -94,7 +94,21 @@ BEGIN
 			GROUP BY l.ULDCurrentLocation
 			HAVING SUM(ul.TransactionQty) > 0;
 
-			IF @TargetBoxULDID IS NULL OR ISNULL(@CurrentBoxULDQty, 0) <= 0 OR @CurrentBoxULDQty < @BoxNumberCount
+			IF @TargetBoxULDID IS NULL
+			BEGIN
+				SET @Message = 'This box ULD not found.';
+				CLOSE cur_TmpBoxCount;
+				DEALLOCATE cur_TmpBoxCount;
+				RETURN;
+			END
+			ELSE IF ISNULL(@CurrentBoxULDQty, 0) <= 0
+			BEGIN
+				SET @Message = 'Box stock is empty in this ULD.';
+				CLOSE cur_TmpBoxCount;
+				DEALLOCATE cur_TmpBoxCount;
+				RETURN;
+			END
+			ELSE IF @CurrentBoxULDQty < @BoxNumberCount
 			BEGIN
 				SET @Message = 'Not enough box stock for packing.';
 				CLOSE cur_TmpBoxCount;
