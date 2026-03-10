@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SQL RAG Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Australia Logistic</p>
+        <h1>SQL RAG Chat</h1>
+        <p id="llmStatus" class="llm-status">Current LLM: Built-in grounded mode</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="llmBtn" class="ghost-btn" type="button">LLM Settings</button>
+        <button id="clearBtn" class="ghost-btn" type="button">Clear</button>
+      </div>
+    </header>
+
+    <section id="messages" class="messages" aria-live="polite"></section>
+
+    <section class="composer">
+      <label for="queryInput" class="sr-only">Ask about SQL objects</label>
+      <textarea id="queryInput" rows="3" placeholder="Ask about procedures, tables, workflows, or business logic..."></textarea>
+      <div class="composer-row">
+        <label class="field-row hint-toggle" for="deepExplainToggle">
+          <input id="deepExplainToggle" type="checkbox" checked>
+          <span>Deep Explain</span>
+        </label>
+        <button id="sendBtn" class="send-btn" type="button">Send</button>
+      </div>
+      <div class="hint">Tip: ask specific flow names like "start wave request".</div>
+    </section>
+  </main>
+
+  <template id="messageTemplate">
+    <article class="message">
+      <div class="role"></div>
+      <div class="bubble"></div>
+    </article>
+  </template>
+
+  <dialog id="llmDialog" class="llm-dialog">
+    <form method="dialog" class="llm-form" id="llmForm">
+      <h2>LLM Settings</h2>
+      <p class="hint">Choose preset, adjust values, and save for this chat session.</p>
+
+      <label class="field-row">
+        <input id="llmEnabled" type="checkbox">
+        <span>Enable external LLM</span>
+      </label>
+
+      <label class="field-block" for="providerSelect">Provider preset</label>
+      <select id="providerSelect"></select>
+
+      <label class="field-block" for="baseUrlInput">Base URL</label>
+      <input id="baseUrlInput" type="text" placeholder="https://models.inference.ai.azure.com/v1">
+
+      <label class="field-block" for="modelInput">Model</label>
+      <input id="modelInput" type="text" placeholder="gpt-4o-mini">
+
+      <label class="field-block" for="apiKeyInput">API key</label>
+      <input id="apiKeyInput" type="password" placeholder="Optional for Ollama">
+
+      <label class="field-block" for="timeoutInput">Timeout (seconds)</label>
+      <input id="timeoutInput" type="number" min="5" max="180" value="45">
+
+      <div class="composer-row llm-tools-row">
+        <button id="testLlmBtn" class="ghost-btn" type="button">Test LLM</button>
+        <span id="llmTestStatus" class="hint" aria-live="polite"></span>
+      </div>
+
+      <div class="composer-row">
+        <button id="cancelLlmBtn" class="ghost-btn" type="button">Cancel</button>
+        <button id="saveLlmBtn" class="send-btn" type="submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

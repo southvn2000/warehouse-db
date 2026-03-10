@@ -1,0 +1,364 @@
+:root {
+  --bg: #f5f1e8;
+  --panel: #fffaf0;
+  --panel-2: #fff;
+  --ink: #11221d;
+  --ink-dim: #3b564d;
+  --accent: #0f766e;
+  --accent-2: #d97706;
+  --line: #d8e3db;
+  --user: #0f766e;
+  --assistant: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: radial-gradient(circle at 20% 15%, #fff6dd 0%, transparent 45%),
+    radial-gradient(circle at 90% 80%, #d2f4ef 0%, transparent 42%),
+    var(--bg);
+}
+
+.bg-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.orb-1 {
+  width: 320px;
+  height: 320px;
+  background: #f59e0b;
+  top: -60px;
+  left: -80px;
+}
+
+.orb-2 {
+  width: 360px;
+  height: 360px;
+  background: #14b8a6;
+  bottom: -120px;
+  right: -100px;
+}
+
+.app-shell {
+  width: min(980px, 94vw);
+  margin: 22px auto;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: color-mix(in hsl, var(--panel), white 25%);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 20px 70px rgba(16, 24, 20, 0.15);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: calc(100vh - 44px);
+  overflow: hidden;
+}
+
+.topbar {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #fff9ea, #e8fcf8);
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+h1 {
+  margin: 6px 0 0;
+  font-size: clamp(22px, 2.4vw, 34px);
+}
+
+.llm-status {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--ink-dim);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.ghost-btn,
+.send-btn {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.ghost-btn {
+  background: #ffffffc2;
+  color: var(--ink);
+}
+
+.send-btn {
+  border-color: transparent;
+  background: linear-gradient(90deg, var(--accent), #0ea5a2);
+  color: #fff;
+}
+
+.ghost-btn:hover,
+.send-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(15, 118, 110, 0.18);
+}
+
+.messages {
+  padding: 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.message {
+  display: grid;
+  gap: 6px;
+  animation: rise 180ms ease both;
+}
+
+.role {
+  font-size: 11px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.bubble {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.message.user {
+  align-self: flex-end;
+  width: min(80%, 760px);
+}
+
+.message.user .bubble {
+  background: linear-gradient(110deg, #0f766e, #0ea5a2);
+  color: white;
+  border-color: transparent;
+}
+
+.message.assistant {
+  align-self: flex-start;
+  width: min(90%, 820px);
+}
+
+.message.assistant .bubble {
+  background: var(--assistant);
+}
+
+.sources {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.source-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px;
+  background: var(--panel-2);
+}
+
+.source-title {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.source-path {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-dim);
+  word-break: break-all;
+}
+
+.composer {
+  border-top: 1px solid var(--line);
+  padding: 14px 16px;
+  background: #fffdf8;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 12px;
+  min-height: 78px;
+  background: #fff;
+  color: var(--ink);
+}
+
+textarea:focus {
+  outline: 2px solid #99f6e4;
+  border-color: #5eead4;
+}
+
+.composer-row {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.hint-toggle {
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.llm-dialog {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  width: min(520px, 94vw);
+  padding: 0;
+}
+
+.llm-dialog::backdrop {
+  background: rgba(17, 34, 29, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+.llm-form {
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.llm-form h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.field-block {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
+.llm-tools-row {
+  margin-top: 8px;
+}
+
+#llmTestStatus {
+  text-align: right;
+  min-height: 18px;
+}
+
+#llmTestStatus.status-info {
+  color: var(--ink-dim);
+}
+
+#llmTestStatus.status-success {
+  color: #0f766e;
+}
+
+#llmTestStatus.status-warn {
+  color: #b45309;
+}
+
+#llmTestStatus.status-error {
+  color: #b91c1c;
+}
+
+.llm-form input,
+.llm-form select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14px;
+  padding: 9px 10px;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 780px) {
+  .app-shell {
+    width: 100vw;
+    min-height: 100vh;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .topbar {
+    padding: 14px;
+  }
+
+  .messages {
+    padding: 12px;
+  }
+
+  .composer {
+    padding: 12px;
+  }
+
+  .message.user,
+  .message.assistant {
+    width: 100%;
+  }
+}

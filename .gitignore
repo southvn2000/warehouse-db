@@ -1,0 +1,3 @@
+.rag/
+__pycache__/
+rag/context_prompt.txt
