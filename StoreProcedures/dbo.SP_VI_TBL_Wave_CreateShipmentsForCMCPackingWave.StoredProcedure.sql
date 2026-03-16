@@ -11,6 +11,7 @@ GO
 -- Description:	<Create Shipment For CMC Packing Wave>
 -- =============================================
 CREATE PROCEDURE [dbo].[SP_VI_TBL_Wave_CreateShipmentsForCMCPackingWave] 	
+	@WarehouseCode VARCHAR(20),
 	@WaveNumber VARCHAR(11),
 	@OperationDateTime DATETIME = NULL,
 	@OperationBy VARCHAR(100) = NULL,
@@ -31,7 +32,14 @@ BEGIN
 		SELECT @WaveID = WaveID,
 			   @ManualPacking = ManualPacking
 		FROM dbo.Wave
-		WHERE WaveNumber = @WaveNumber AND Deleted = 0;
+		WHERE WaveNumber = @WaveNumber AND WarehouseCode = @WarehouseCode AND Deleted = 0;
+
+		If @WaveID IS NULL
+		BEGIN	
+			SET @Message = 'Wave not found for this warehouse and wave number.';
+			ROLLBACK TRANSACTION;
+			RETURN;
+		END
 
 		IF @ManualPacking = 1
 		BEGIN
@@ -39,7 +47,6 @@ BEGIN
 			ROLLBACK TRANSACTION;
 			RETURN;
 		END
-
 
 		-- Create temporary table to store results
 		CREATE TABLE #PackingTaskResults (
