@@ -27,26 +27,64 @@ BEGIN
 
 		DECLARE @WaveID INT;
 		DECLARE @ManualPacking BIT;
+		DECLARE @StepSatus VARCHAR(20);
+		DECLARE @CurrentStep VARCHAR(50);
+
 
 		-- get info
 		SELECT @WaveID = WaveID,
-			   @ManualPacking = ManualPacking
+			   @ManualPacking = ManualPacking,
+			   @StepSatus = StepStatus,
+			   @CurrentStep = CurrentStep
 		FROM dbo.Wave
 		WHERE WaveNumber = @WaveNumber AND WarehouseCode = @WarehouseCode AND Deleted = 0;
 
 		If @WaveID IS NULL
 		BEGIN	
-			SET @Message = 'Wave not found for this warehouse and wave number.';
+			SET @Message = 'Wave not Available';
 			ROLLBACK TRANSACTION;
 			RETURN;
 		END
 
-		IF @ManualPacking = 1
+		IF EXISTS (
+			SELECT 1
+			FROM dbo.CMCPackingWaveResult r
+			WHERE r.WaveNumber = @WaveNumber AND ISNULL(r.Deleted, 0) = 0
+		)
 		BEGIN
-			SET @Message = 'Manual packing is not allowed for this wave.';
+			SET @Message = 'Wave already imported to CMC System';
 			ROLLBACK TRANSACTION;
 			RETURN;
 		END
+
+		IF @ManualPacking = 0
+		BEGIN
+			SET @Message = 'Wave already imported to CMC System';
+			ROLLBACK TRANSACTION;
+			RETURN;
+		END
+
+		IF @CurrentStep = 'Packing' AND @StepSatus = 'InProgress'
+		BEGIN
+			SET @Message = 'Wave not Available - Manual Packing Started';
+			ROLLBACK TRANSACTION;
+			RETURN;
+		END
+
+		IF @CurrentStep = 'Packing' AND @StepSatus = 'Completed'
+		BEGIN
+			SET @Message = 'Wave not Available - Already packed';
+			ROLLBACK TRANSACTION;
+			RETURN;
+		END
+
+		IF @StepSatus <> 'Pending' OR @CurrentStep <> 'Packing'
+		BEGIN
+			SET @Message = 'Wave not Available';
+			ROLLBACK TRANSACTION;
+			RETURN;
+		END
+
 
 		-- Create temporary table to store results
 		CREATE TABLE #PackingTaskResults (
@@ -218,6 +256,32 @@ BEGIN
 		-- Commit the transaction
         COMMIT TRANSACTION
 
+		INSERT INTO dbo.CMCPackingWaveResult
+		(
+			WaveNumber,
+			SourceOrderNumber,
+			TenantCode,
+			TenantName,
+			PickingSlipNumber,
+			ItemCodes,
+			ItemBarcode,
+			ItemSerialNo,
+			QTY,
+			LabelDataLen,
+			LabelData,
+			Status,
+			MatchLab,
+			ShipmentID,
+			IsLocal,
+			Carrier,
+			Deleted,
+			CreatedDateTime,
+			CreatedBy,
+			FirstEditedDateTime,
+			FirstEditedBy,
+			LastEditedDateTime,
+			LastEditedBy
+		)
 		SELECT
 			@WaveNumber AS WaveNumber,
 			COALESCE(r.SourceOrderNumber, f.order_number, '') AS SourceOrderNumber,
@@ -230,7 +294,18 @@ BEGIN
 			COALESCE(flAgg.QTY, '0') AS QTY,
 			COALESCE(lbl.LabelDataLen, 'ZPL-Length') AS LabelDataLen,
 			COALESCE(lbl.LabelData, 'ZPL') AS LabelData,
-			'Please See Attached Sample' AS MatchLab
+			'Pending' AS Status,
+			COALESCE(f.OrderNumber, '') AS MatchLab,
+			r.ShipmentID AS ShipmentID,
+			r.IsLocal AS IsLocal,
+			r.Carrier AS Carrier,
+			0 AS Deleted,
+			COALESCE(@OperationDateTime, GETDATE()) AS CreatedDateTime,
+			@OperationBy AS CreatedBy,
+			COALESCE(@OperationDateTime, GETDATE()) AS FirstEditedDateTime,
+			@OperationBy AS FirstEditedBy,
+			COALESCE(@OperationDateTime, GETDATE()) AS LastEditedDateTime,
+			@OperationBy AS LastEditedBy
 		FROM #PackingTaskResults r
 		LEFT JOIN dbo.Fulfilment f ON f.OrderNumber = r.OrderNumber AND f.Deleted = 0
 		LEFT JOIN dbo.Tenant t ON t.TenantCode = f.TenantCode AND t.Deleted = 0
@@ -274,6 +349,17 @@ BEGIN
 			  )
 			ORDER BY m.ULDLabelFileMappingID DESC
 		) lbl;
+
+		--Update wave manul packing to 0
+		UPDATE dbo.Wave
+		SET ManualPacking = 0,
+			FirstEditedDateTime = COALESCE(@OperationDateTime, FirstEditedDateTime),
+			FirstEditedBy = COALESCE(@OperationBy, FirstEditedBy),
+			LastEditedDateTime = COALESCE(@OperationDateTime, LastEditedDateTime),
+			LastEditedBy = COALESCE(@OperationBy, LastEditedBy)
+		WHERE WaveID = @WaveID AND Deleted = 0;
+
+		SET @Message = 'Wave is available then start data transfer';
 		
     END TRY
     BEGIN CATCH
