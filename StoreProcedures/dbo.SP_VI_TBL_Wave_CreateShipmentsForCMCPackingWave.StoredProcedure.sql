@@ -200,6 +200,7 @@ BEGIN
 						@FulfilmentOrder = @OrderNumber,
 						@BoxSize = @BoxSize,
 						@IsOneBox = 1,
+						@PrinterDPI = 300,
 						@CreatedDateTime = @OperationDateTime,
 						@CreatedBy = @OperationBy,
 						@WarehouseCode = NULL,
