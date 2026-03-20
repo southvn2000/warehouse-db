@@ -11,7 +11,7 @@ GO
 -- Description:	<Get one pending CMC packing row by wave number and mark it InProgress>
 -- =============================================
 CREATE PROCEDURE [dbo].[SP_VI_TBL_CMCPackingWaveResult_GetPendingItemByWaveNumber]
-	@WaveNumber VARCHAR(11),
+	@WaveNumbers dbo.StringArray READONLY,
 	@OperationDateTime DATETIME = NULL,
 	@OperationBy VARCHAR(100) = NULL,
 	@Message VARCHAR(4000) OUTPUT
@@ -43,6 +43,7 @@ BEGIN
 			IsLocal BIT,
 			Carrier VARCHAR(100),
 			PrinterResolution VARCHAR(50),
+			OrderSource VARCHAR(50),
 			Deleted BIT,
 			CreatedDateTime DATETIME,
 			CreatedBy VARCHAR(100),
@@ -52,21 +53,37 @@ BEGIN
 			LastEditedBy VARCHAR(100)
 		);
 
-		;WITH NextPending AS
+		;WITH MatchedRows AS
 		(
-			SELECT TOP 1 *
-			FROM dbo.CMCPackingWaveResult WITH (ROWLOCK, READPAST, UPDLOCK)
-			WHERE WaveNumber = @WaveNumber
-			  AND Status = 'Pending'
-			  AND Deleted = 0
-			ORDER BY CMCPackingWaveResultID ASC
+			SELECT c.*
+			FROM dbo.CMCPackingWaveResult c WITH (ROWLOCK, READPAST, UPDLOCK)
+			WHERE c.Deleted = 0
+			  AND EXISTS
+			  (
+				SELECT 1
+				FROM @WaveNumbers w
+				WHERE w.[Value] IS NOT NULL
+				  AND w.[Value] = c.WaveNumber
+			  )
 		)
-		UPDATE NextPending
-		SET Status = 'InProgress',
-			FirstEditedDateTime = COALESCE(@OperationDateTime, FirstEditedDateTime),
-			FirstEditedBy = COALESCE(@OperationBy, FirstEditedBy),
-			LastEditedDateTime = COALESCE(@OperationDateTime, GETDATE()),
-			LastEditedBy = COALESCE(@OperationBy, LastEditedBy)
+		UPDATE MatchedRows
+		SET Status = CASE WHEN Status = 'Pending' THEN 'InProgress' ELSE Status END,
+			FirstEditedDateTime = CASE
+				WHEN Status = 'Pending' THEN COALESCE(@OperationDateTime, FirstEditedDateTime)
+				ELSE FirstEditedDateTime
+			END,
+			FirstEditedBy = CASE
+				WHEN Status = 'Pending' THEN COALESCE(@OperationBy, FirstEditedBy)
+				ELSE FirstEditedBy
+			END,
+			LastEditedDateTime = CASE
+				WHEN Status = 'Pending' THEN COALESCE(@OperationDateTime, GETDATE())
+				ELSE LastEditedDateTime
+			END,
+			LastEditedBy = CASE
+				WHEN Status = 'Pending' THEN COALESCE(@OperationBy, LastEditedBy)
+				ELSE LastEditedBy
+			END
 		OUTPUT
 			inserted.CMCPackingWaveResultID,
 			inserted.WaveNumber,
@@ -86,6 +103,7 @@ BEGIN
 			inserted.IsLocal,
 			inserted.Carrier,
 			'300' as PrinterResolution,
+			inserted.OrderSource,
 			inserted.Deleted,
 			inserted.CreatedDateTime,
 			inserted.CreatedBy,
@@ -97,7 +115,7 @@ BEGIN
 
 		IF NOT EXISTS (SELECT 1 FROM @Picked)
 		BEGIN
-			SET @Message = 'No pending item found for this wave number.';
+			SET @Message = 'No item found for the supplied wave numbers.';
 			COMMIT TRANSACTION;
 			RETURN;
 		END

@@ -23,6 +23,7 @@ CREATE TABLE [dbo].[CMCPackingWaveResult](
 	[ShipmentID] [int] NULL,
 	[IsLocal] [bit] NULL,
 	[Carrier] [varchar](100) NULL,
+	[OrderSource] [varchar](50) NULL,
 	[Deleted] [bit] NULL,
 	[CreatedDateTime] [datetime] NULL,
 	[CreatedBy] [varchar](100) NULL,

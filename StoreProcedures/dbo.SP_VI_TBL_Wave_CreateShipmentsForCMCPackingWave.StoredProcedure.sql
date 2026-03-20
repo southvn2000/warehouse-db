@@ -274,6 +274,7 @@ BEGIN
 			ShipmentID,
 			IsLocal,
 			Carrier,
+			OrderSource,
 			Deleted,
 			CreatedDateTime,
 			CreatedBy,
@@ -299,6 +300,7 @@ BEGIN
 			r.ShipmentID AS ShipmentID,
 			r.IsLocal AS IsLocal,
 			r.Carrier AS Carrier,
+			r.OrderSource AS OrderSource,
 			0 AS Deleted,
 			COALESCE(@OperationDateTime, GETDATE()) AS CreatedDateTime,
 			@OperationBy AS CreatedBy,
@@ -359,7 +361,13 @@ BEGIN
 			LastEditedBy = COALESCE(@OperationBy, LastEditedBy)
 		WHERE WaveID = @WaveID AND Deleted = 0;
 
-		SET @Message = 'Wave is available then start data transfer';
+		SET @Message = 'OK';
+
+		-- return results
+		SELECT MatchLab as FulfilmentNumber
+		FROM dbo.CMCPackingWaveResult
+		WHERE WaveNumber = @WaveNumber AND Deleted = 0;
+			
 		
     END TRY
     BEGIN CATCH
