@@ -11,7 +11,8 @@ GO
 -- Description:	<Get one pending CMC packing row by wave number and mark it InProgress>
 -- =============================================
 CREATE PROCEDURE [dbo].[SP_VI_TBL_CMCPackingWaveResult_GetPendingItemByWaveNumber]
-	@WaveNumbers dbo.StringArray READONLY,
+	@WaveNumber VARCHAR(11),
+	@FulfillmentNumbers dbo.StringArray READONLY,
 	@OperationDateTime DATETIME = NULL,
 	@OperationBy VARCHAR(100) = NULL,
 	@Message VARCHAR(4000) OUTPUT
@@ -58,12 +59,13 @@ BEGIN
 			SELECT c.*
 			FROM dbo.CMCPackingWaveResult c WITH (ROWLOCK, READPAST, UPDLOCK)
 			WHERE c.Deleted = 0
+			  AND c.WaveNumber = @WaveNumber
 			  AND EXISTS
 			  (
 				SELECT 1
-				FROM @WaveNumbers w
+				FROM @FulfillmentNumbers w
 				WHERE w.[Value] IS NOT NULL
-				  AND w.[Value] = c.WaveNumber
+				  AND w.[Value] = c.MatchLab
 			  )
 		)
 		UPDATE MatchedRows
@@ -115,7 +117,7 @@ BEGIN
 
 		IF NOT EXISTS (SELECT 1 FROM @Picked)
 		BEGIN
-			SET @Message = 'No item found for the supplied wave numbers.';
+			SET @Message = 'No item found for the supplied fulfillment numbers.';
 			COMMIT TRANSACTION;
 			RETURN;
 		END
