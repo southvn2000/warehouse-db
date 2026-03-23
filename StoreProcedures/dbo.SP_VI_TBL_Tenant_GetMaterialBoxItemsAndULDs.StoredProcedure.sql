@@ -11,6 +11,7 @@ GO
 -- Description:	<Get material Box items and their ULDs by tenant (or all tenants)>
 -- =============================================
 CREATE PROCEDURE [dbo].[SP_VI_TBL_Tenant_GetMaterialBoxItemsAndULDs]
+    @WarehouseCode VARCHAR(10) = NULL,
     @TenantCode VARCHAR(10) = NULL
 AS
 BEGIN
@@ -58,6 +59,7 @@ BEGIN
         AND I.ItemIsMaterial = 1
         AND LTRIM(RTRIM(ISNULL(I.MaterialType, ''))) = 'Box'
         AND (@TenantCode IS NULL OR I.TenantCode = @TenantCode)
+        AND (@WarehouseCode IS NULL OR U.WarehouseCode = @WarehouseCode)
         AND U.HoldStatus IS NULL
         AND U.Status NOT IN ('Draft', 'InActive', 'Locked')
         AND U.ULDCurrentLocation IS NOT NULL
