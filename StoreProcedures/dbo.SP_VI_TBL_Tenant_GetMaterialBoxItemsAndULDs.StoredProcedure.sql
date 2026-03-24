@@ -10,7 +10,7 @@ GO
 -- Create date: <20 Mar, 2026>
 -- Description:	<Get material Box items and their ULDs by tenant (or all tenants)>
 -- =============================================
-CREATE PROCEDURE [dbo].[SP_VI_TBL_Tenant_GetMaterialBoxItemsAndULDs]
+ALTER PROCEDURE [dbo].[SP_VI_TBL_Tenant_GetMaterialBoxItemsAndULDs]
     @WarehouseCode VARCHAR(10) = NULL,
     @TenantCode VARCHAR(10) = NULL
 AS
@@ -27,6 +27,7 @@ BEGIN
         I.MaterialType,
         U.ULDID,
         U.ULDBarcode,
+        CONCAT(U.ULDBarcode, '|', ITU.Barcode) AS QRCode,
         U.WarehouseCode,
         LW.WarehouseName,
         U.ULDCurrentLocation,
@@ -51,6 +52,10 @@ BEGIN
     LEFT JOIN dbo.Tenant T
         ON T.TenantCode = I.TenantCode
         AND T.Deleted = 0
+    LEFT JOIN dbo.ItemTradeUnit ITU
+        ON ITU.ItemID = I.ItemID
+        AND ITU.PrimaryUnit = 1
+        AND ITU.Deleted = 0
     LEFT JOIN dbo.LocWarehouse LW
         ON LW.WarehouseCode = U.WarehouseCode
         AND LW.Deleted = 0
