@@ -84,6 +84,31 @@ BEGIN
 			ROLLBACK TRANSACTION;
 			RETURN;
 		END
+		
+		IF EXISTS (
+			SELECT 1
+			FROM dbo.Waveline wl
+			INNER JOIN dbo.Fulfilment f ON f.OrderNumber = wl.OrderNumber AND f.Deleted = 0
+			WHERE wl.Deleted = 0
+			  AND wl.WaveID = @WaveID
+			  AND ISNULL(f.CarrierID, 0) = 2
+		)
+		BEGIN
+			SET @Message = 'Wave not Available - Manual Shipment is not supported';
+			ROLLBACK TRANSACTION;
+			RETURN;
+		END
+
+		UPDATE dbo.Wave
+		SET StepStatus = 'InProgress',
+			FirstEditedDateTime = COALESCE(@OperationDateTime, FirstEditedDateTime),
+			FirstEditedBy = COALESCE(@OperationBy, FirstEditedBy),
+			LastEditedDateTime = COALESCE(@OperationDateTime, LastEditedDateTime),
+			LastEditedBy = COALESCE(@OperationBy, LastEditedBy)
+		WHERE WaveID = @WaveID
+		  AND Deleted = 0;
+
+		SET @StepSatus = 'InProgress';
 
 
 		-- Create temporary table to store results

@@ -73,6 +73,27 @@ BEGIN
            AND v.SourceOrderNumber = c.SourceOrderNumber
         WHERE ISNULL(c.Deleted, 0) = 0;
 
+        -- Update 
+        UPDATE wl
+        SET
+            wl.PackStatus = 'Completed',
+            wl.FirstEditedDateTime = COALESCE(@OperationDateTime, wl.FirstEditedDateTime),
+            wl.FirstEditedBy = COALESCE(@OperationBy, wl.FirstEditedBy),
+            wl.LastEditedDateTime = COALESCE(@OperationDateTime, wl.LastEditedDateTime),
+            wl.LastEditedBy = COALESCE(@OperationBy, wl.LastEditedBy),
+            wl.PackDateTime = COALESCE(@OperationDateTime, wl.PackDateTime),
+            wl.PackBy = COALESCE(@OperationBy, wl.PackBy)
+        FROM dbo.WaveLine wl
+        INNER JOIN @UpdatedRows u
+            ON u.WaveNumber = wl.WaveNumber
+           AND u.SourceOrderNumber = wl.SourceOrderNumber
+        INNER JOIN dbo.CMCPackingWaveResult c
+            ON c.WaveNumber = u.WaveNumber
+           AND c.SourceOrderNumber = u.SourceOrderNumber
+           AND ISNULL(c.Deleted, 0) = 0
+        WHERE ISNULL(wl.Deleted, 0) = 0
+          AND c.Status = 'Completed';
+
         --update shipment info for DHL and AP/AU Post based on the updated wave results
         
         INSERT INTO @ShipmentUpdates
