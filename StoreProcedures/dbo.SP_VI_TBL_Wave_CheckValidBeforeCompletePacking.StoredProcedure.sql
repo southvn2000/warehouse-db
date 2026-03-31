@@ -113,7 +113,7 @@ BEGIN
         FROM dbo.WaveLine
         WHERE WaveID = @WaveID
           AND Deleted = 0
-          AND ISNULL(PackStatus, '') <> 'Completed'
+          AND ISNULL(PackStatus, '') NOT IN ('Completed','Error')
     )
     BEGIN
         SET @Message = 'There are WaveLines that have not completed packing yet.';
