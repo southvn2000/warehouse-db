@@ -32,7 +32,7 @@ BEGIN
 			TenantCode VARCHAR(50),
 			TenantName VARCHAR(100),
 			PickingSlipNumber VARCHAR(100),
-			ItemCodes VARCHAR(MAX),
+			ItemCode VARCHAR(MAX),
 			ItemBarcode VARCHAR(MAX),
 			ItemSerialNo VARCHAR(MAX),
 			QTY VARCHAR(50),
