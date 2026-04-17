@@ -19,10 +19,11 @@ BEGIN
     SET NOCOUNT ON;
 
     BEGIN TRY
+
         DECLARE @UpdatedRows TABLE
         (
             WaveNumber VARCHAR(50),
-            SourceOrderNumber VARCHAR(50)
+            FulfilmentNumber VARCHAR(50)
         );
 
         DECLARE @ShipmentUpdates TABLE
@@ -44,9 +45,8 @@ BEGIN
         -- Update CMCPackingWaveResult with the provided CMCResults, only for valid rows with non-empty WaveNumber and SourceOrderNumber
         ;WITH InputRows AS
         (
-            SELECT
-                LTRIM(RTRIM(ISNULL(r.WaveNumber, ''))) AS WaveNumber,
-                LTRIM(RTRIM(ISNULL(r.SourceOrderNumber, ''))) AS SourceOrderNumber,
+            SELECT               
+                LTRIM(RTRIM(ISNULL(r.FulfilmentNumber, ''))) AS FulfilmentNumber,
                 CASE
                     WHEN UPPER(NULLIF(LTRIM(RTRIM(r.OrderStatus)), '')) IN ('FAILED', 'ERROR', 'CANCELLED', 'CANCELED') THEN 'Canceled'
                     WHEN UPPER(NULLIF(LTRIM(RTRIM(r.OrderStatus)), '')) = 'PENDING' THEN 'Pending'
@@ -58,13 +58,11 @@ BEGIN
         ),
         ValidRows AS
         (
-            SELECT DISTINCT
-                i.WaveNumber,
-                i.SourceOrderNumber,
+            SELECT DISTINCT              
+                i.FulfilmentNumber,
                 i.OrderStatus
             FROM InputRows i
-            WHERE i.WaveNumber <> ''
-              AND i.SourceOrderNumber <> ''
+            WHERE i.FulfilmentNumber <> ''
         )
         UPDATE c
         SET
@@ -72,13 +70,12 @@ BEGIN
             c.LastEditedDateTime = COALESCE(@OperationDateTime, GETDATE()),
             c.LastEditedBy = COALESCE(NULLIF(LTRIM(RTRIM(@OperationBy)), ''), '')
         OUTPUT
-            inserted.WaveNumber,
-            inserted.SourceOrderNumber
-        INTO @UpdatedRows (WaveNumber, SourceOrderNumber)
+           inserted.WaveNumber,
+           inserted.MatchLab
+        INTO @UpdatedRows (WaveNumber, FulfilmentNumber)
         FROM dbo.CMCPackingWaveResult c
         INNER JOIN ValidRows v
-            ON v.WaveNumber = c.WaveNumber
-           AND v.SourceOrderNumber = c.SourceOrderNumber
+            ON v.FulfilmentNumber = c.MatchLab
         WHERE ISNULL(c.Deleted, 0) = 0;
 
         -- Update complete the wave line if the order status is failed, so that the failed order will not be included in the next packing process, and update shipment info for the failed orders as well
@@ -94,10 +91,10 @@ BEGIN
         FROM dbo.WaveLine wl
         INNER JOIN @UpdatedRows u
             ON u.WaveNumber = wl.WaveNumber
-           AND u.SourceOrderNumber = wl.SourceOrderNumber
+           AND u.FulfilmentNumber = wl.OrderNumber
         INNER JOIN dbo.CMCPackingWaveResult c
             ON c.WaveNumber = u.WaveNumber
-           AND c.SourceOrderNumber = u.SourceOrderNumber
+           AND c.MatchLab = u.FulfilmentNumber
            AND ISNULL(c.Deleted, 0) = 0
         WHERE ISNULL(wl.Deleted, 0) = 0
           AND c.Status = 'Completed';
@@ -113,10 +110,10 @@ BEGIN
         FROM dbo.WaveLine wl
         INNER JOIN @UpdatedRows u
                 ON u.WaveNumber = wl.WaveNumber
-                AND u.SourceOrderNumber = wl.SourceOrderNumber
+                AND u.FulfilmentNumber = wl.OrderNumber
         INNER JOIN dbo.CMCPackingWaveResult c
                 ON c.WaveNumber = u.WaveNumber
-                AND c.SourceOrderNumber = u.SourceOrderNumber
+                AND c.MatchLab = u.FulfilmentNumber
                 AND ISNULL(c.Deleted, 0) = 0
         WHERE ISNULL(wl.Deleted, 0) = 0
             AND c.Status = 'Canceled';
@@ -135,10 +132,10 @@ BEGIN
            AND ISNULL(wl.Deleted, 0) = 0
         INNER JOIN @UpdatedRows u
             ON u.WaveNumber = wl.WaveNumber
-           AND u.SourceOrderNumber = wl.SourceOrderNumber
+           AND u.FulfilmentNumber = wl.OrderNumber
         INNER JOIN dbo.CMCPackingWaveResult c
             ON c.WaveNumber = u.WaveNumber
-           AND c.SourceOrderNumber = u.SourceOrderNumber
+           AND c.MatchLab = u.FulfilmentNumber
            AND ISNULL(c.Deleted, 0) = 0
         WHERE ISNULL(f.Deleted, 0) = 0
                     AND c.Status = 'Canceled';
@@ -174,8 +171,7 @@ BEGIN
             )
         FROM @CMCResults r
         INNER JOIN dbo.CMCPackingWaveResult c
-            ON c.WaveNumber = LTRIM(RTRIM(ISNULL(r.WaveNumber, '')))
-           AND c.SourceOrderNumber = LTRIM(RTRIM(ISNULL(r.SourceOrderNumber, '')))
+            ON c.MatchLab = LTRIM(RTRIM(ISNULL(r.FulfilmentNumber, '')))
            AND ISNULL(c.Deleted, 0) = 0
                 WHERE c.ShipmentID IS NOT NULL
                     AND c.Status = 'Completed';
@@ -246,7 +242,7 @@ BEGIN
         FROM @UpdatedRows u
         INNER JOIN dbo.CMCPackingWaveResult c
             ON c.WaveNumber = u.WaveNumber
-           AND c.SourceOrderNumber = u.SourceOrderNumber
+           AND c.MatchLab = u.FulfilmentNumber
            AND ISNULL(c.Deleted, 0) = 0
         INNER JOIN
         (

@@ -8,6 +8,7 @@ GO
 CREATE TABLE [dbo].[CMCPackingWaveResult](
 	[CMCPackingWaveResultID] [int] IDENTITY(1,1) NOT NULL,
 	[WaveNumber] [varchar](11) NULL,
+	[FulfilmentNumber] [varchar](50) NULL,
 	[SourceOrderNumber] [varchar](50) NULL,
 	[TenantCode] [varchar](50) NULL,
 	[TenantName] [varchar](100) NULL,

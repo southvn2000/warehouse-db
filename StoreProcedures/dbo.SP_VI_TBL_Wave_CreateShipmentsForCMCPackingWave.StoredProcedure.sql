@@ -304,6 +304,7 @@ BEGIN
 				(
 					WaveNumber,
 					SourceOrderNumber,
+					FulfilmentNumber,
 					TenantCode,
 					TenantName,
 					PickingSlipNumber,
@@ -330,6 +331,7 @@ BEGIN
 				SELECT
 					@WaveNumber AS WaveNumber,
 					COALESCE(r.SourceOrderNumber, f.order_number, '') AS SourceOrderNumber,
+					COALESCE(f.OrderNumber, '') AS FulfilmentNumber,
 					COALESCE(f.TenantCode, '') AS TenantCode,
 					COALESCE(t.TenantName, r.TenantName, '') AS TenantName,
 					COALESCE(c.PickingSlipNumber, '') AS PickingSlipNumber,
