@@ -45,6 +45,7 @@ BEGIN
       AND (@WarehouseCode  IS NULL OR f.WarehouseCode  = @WarehouseCode)
       AND (@TenantCode     IS NULL OR f.TenantCode     = @TenantCode)
       AND f.FulfilmentType = 'Orders'
+            AND w.WaveID IS NOT NULL
       AND (
             @Search IS NULL OR LEN(LTRIM(RTRIM(@Search))) = 0
             OR LOWER(f.order_number)          LIKE '%' + LOWER(@Search) + '%'
@@ -107,6 +108,7 @@ BEGIN
           AND (@WarehouseCode  IS NULL OR f.WarehouseCode  = @WarehouseCode)
           AND (@TenantCode     IS NULL OR f.TenantCode     = @TenantCode)
           AND f.FulfilmentType = ''Orders''
+                    AND w.WaveID IS NOT NULL
           AND (
                 @Search IS NULL OR LEN(LTRIM(RTRIM(@Search))) = 0
                 OR LOWER(f.order_number)          LIKE ''%'' + LOWER(@Search) + ''%''

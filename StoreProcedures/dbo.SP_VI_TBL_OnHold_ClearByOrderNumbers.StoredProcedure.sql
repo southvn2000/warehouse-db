@@ -10,7 +10,7 @@ GO
 -- Create date: <16 Apr, 2026>
 -- Description: <Clear OnHold for Order/Fulfilment by array and write audit log>
 -- =============================================
-CREATE PROCEDURE [dbo].[SP_VI_TBL_OnHold_ClearByOrderNumbers]
+ALTER PROCEDURE [dbo].[SP_VI_TBL_OnHold_ClearByOrderNumbers]
     @OrderType VARCHAR(20), -- Order | Fulfilment
     @OrderNumbers dbo.OrderType READONLY,
     @EditedDateTime DATETIME = NULL,
@@ -40,6 +40,8 @@ BEGIN
             UPDATE O
             SET
                 O.OnHold = 0,
+                O.FulfilmentStatus = 'Not Started',
+                O.FulfilmentStatusDateTime = NULL,
                 O.FirstEditedDateTime = COALESCE(O.FirstEditedDateTime, @ActionDateTime),
                 O.FirstEditedBy = COALESCE(O.FirstEditedBy, @ActionBy),
                 O.LastEditedDateTime = @ActionDateTime,
@@ -48,7 +50,24 @@ BEGIN
             FROM dbo.Orders O
             INNER JOIN @OrderNumbers N ON N.OrderNumber = O.order_number
             WHERE ISNULL(O.Deleted, 0) = 0
-              AND ISNULL(O.OnHold, 0) = 1;
+              AND ISNULL(O.OnHold, 0) = 1
+              AND LOWER(ISNULL(O.Source, '')) = 'manual';
+
+            UPDATE F
+            SET
+                F.OnHold = 0,
+                F.FulfilmentStatus = 'OnHoldCleared',                
+                F.FirstEditedDateTime = COALESCE(F.FirstEditedDateTime, @ActionDateTime),
+                F.FirstEditedBy = COALESCE(F.FirstEditedBy, @ActionBy),
+                F.LastEditedDateTime = @ActionDateTime,
+                F.LastEditedBy = @ActionBy
+            OUTPUT inserted.order_number INTO @Updated(OrderNumber)
+            FROM dbo.Fulfilment F
+            INNER JOIN @OrderNumbers N ON N.OrderNumber = F.OrderNumber
+            WHERE ISNULL(F.Deleted, 0) = 0
+              AND ISNULL(F.OnHold, 0) = 1
+              AND LOWER(ISNULL(F.OrderSource, '')) = 'shopify';
+            
 
             INSERT INTO dbo.OnHoldOrderLog
                 ([OrderNumber], [OrderType], [LogType], [LogDate], [LogBy], [CreatedBy], [CreatedDateTime], [FirstEditedBy], [FirstEditedDateTime], [LastEditedBy], [LastEditedDateTime], [Deleted])
@@ -72,6 +91,7 @@ BEGIN
             UPDATE F
             SET
                 F.OnHold = 0,
+                F.FulfilmentStatus = 'OnHoldCleared',    
                 F.FirstEditedDateTime = COALESCE(F.FirstEditedDateTime, @ActionDateTime),
                 F.FirstEditedBy = COALESCE(F.FirstEditedBy, @ActionBy),
                 F.LastEditedDateTime = @ActionDateTime,
