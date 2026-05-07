@@ -40,7 +40,7 @@ BEGIN
             UPDATE O
             SET
                 O.OnHold = 0,
-                O.FulfilmentStatus = 'Not Started',
+                O.FulfilmentStatus = 'OnHoldCleared',
                 O.FulfilmentStatusDateTime = NULL,
                 O.FirstEditedDateTime = COALESCE(O.FirstEditedDateTime, @ActionDateTime),
                 O.FirstEditedBy = COALESCE(O.FirstEditedBy, @ActionBy),

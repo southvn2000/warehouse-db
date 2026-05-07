@@ -10,7 +10,7 @@ GO
 -- Create date: <27 Jun, 2025>
 -- Description:	<List Fulfilment Orders By Status>
 -- =============================================
-CREATE PROCEDURE [dbo].[SP_VI_TBL_Fulfilment_ListAvailableFulfilments]    
+ALTER PROCEDURE [dbo].[SP_VI_TBL_Fulfilment_ListAvailableFulfilments]    
 	 @WarehouseCode  VARCHAR(20) = NULL, 
      @TenantCode VARCHAR(20) = NULL,
 	 @Search NVARCHAR(100) = NULL,
@@ -36,16 +36,28 @@ BEGIN
     BEGIN
         -- Get the total number of records
         SELECT @TotalRecords = COUNT(*) 
-        FROM dbo.Fulfilment WHERE FulfilmentStatus IN ('Fulfilment', 'Started') AND FulfilmentType = @FulfilmentType 
-                AND OnHold = 0
-                AND DELETED = 0 
-                AND (@WarehouseCode IS NULL OR WarehouseCode = @WarehouseCode)
-                AND (@TenantCode IS NULL OR TenantCode = @TenantCode);
+        FROM dbo.Fulfilment f
+        LEFT JOIN 
+        ( 
+            SELECT l.OrderNumber, w.WaveNumber, w.WaveStatus , w.StepStatus
+            FROM WaveLine l 
+            LEFT JOIN Wave w ON w.WaveID = l.WaveID 
+            WHERE l.Deleted = 0
+            AND w.Deleted = 0           
+        ) w 
+        ON w.OrderNumber = f.OrderNumber
+        WHERE f.FulfilmentStatus IN ('Fulfilment', 'Started') 
+                AND w.StepStatus NOT IN ('Started', 'Completed')     
+                AND f.FulfilmentType = @FulfilmentType 
+                AND f.OnHold = 0
+                AND f.DELETED = 0 
+                AND (@WarehouseCode IS NULL OR f.WarehouseCode = @WarehouseCode)
+                AND (@TenantCode IS NULL OR f.TenantCode = @TenantCode);
 
         -- Calculate the total number of pages
         SET @TotalPages = CEILING(CAST(@TotalRecords AS FLOAT) / @PageSize);
 
-        SET @SQL = N'SELECT f.*, w.WaveID, w.WaveNumber, w.WaveStatus, lw.WarehouseName, t.TenantName, t.TenantID,
+        SET @SQL = N'SELECT f.*, w.WaveID, w.WaveNumber, w.WaveStatus, w.StepStatus, lw.WarehouseName, t.TenantName, t.TenantID,
 
                 
                     CASE
@@ -65,11 +77,10 @@ BEGIN
                     LEFT JOIN Tenant t ON t.TenantCode = f.TenantCode
                     LEFT JOIN 
                     ( 
-                        SELECT l.OrderNumber, w.WaveID, w.WaveNumber, w.WaveStatus FROM WaveLine l 
+                        SELECT l.OrderNumber, w.WaveID, w.WaveNumber, w.WaveStatus, w.StepStatus FROM WaveLine l 
                         LEFT JOIN Wave w ON w.WaveID = l.WaveID 
                         WHERE l.Deleted = 0
                         AND w.Deleted = 0
-                        AND w.StepStatus NOT IN (''Pending'', ''Completed'')
                     ) w
                     ON w.OrderNumber = f.OrderNumber
 
@@ -91,6 +102,7 @@ BEGIN
 
                     WHERE f.FulfilmentStatus IN (''Fulfilment'', ''Started'')
                     AND f.FulfilmentType = @FulfilmentType
+                    AND w.StepStatus NOT IN (''Started'', ''Completed'')
                     AND (@WarehouseCode IS NULL OR f.WarehouseCode = @WarehouseCode)
                     AND (@TenantCode IS NULL OR f.TenantCode = @TenantCode)
                     AND OnHold = 0 AND f.DELETED = 0 ORDER BY ' + @OrderBy + ' ' + @OrderDir +
@@ -105,17 +117,17 @@ BEGIN
         FROM dbo.Fulfilment f
         LEFT JOIN 
         ( 
-            SELECT l.OrderNumber, w.WaveNumber, w.WaveStatus FROM WaveLine l 
+            SELECT l.OrderNumber, w.WaveNumber, w.WaveStatus, w.StepStatus FROM WaveLine l 
             LEFT JOIN Wave w ON w.WaveID = l.WaveID 
             WHERE l.Deleted = 0
-            AND w.Deleted = 0
-            AND w.StepStatus NOT IN ('Pending', 'Completed')
+            AND w.Deleted = 0           
         ) w 
         ON w.OrderNumber = f.OrderNumber
         LEFT JOIN dbo.Tenant t ON f.TenantCode = t.TenantCode 
         WHERE f.DELETED = 0 
         AND f.OnHold = 0
         AND f.FulfilmentStatus IN ('Fulfilment', 'Started')
+        AND w.StepStatus NOT IN ('Started', 'Completed')        
         AND f.FulfilmentType = @FulfilmentType
         AND (@WarehouseCode IS NULL OR f.WarehouseCode = @WarehouseCode)
         AND (@TenantCode IS NULL OR f.TenantCode = @TenantCode)
@@ -150,11 +162,10 @@ BEGIN
             LEFT JOIN LocWarehouse lw ON lw.WarehouseCode = f.WarehouseCode
             LEFT JOIN 
             ( 
-                SELECT l.OrderNumber, w.WaveID, w.WaveNumber, w.WaveStatus FROM WaveLine l 
+                SELECT l.OrderNumber, w.WaveID, w.WaveNumber, w.WaveStatus, w.StepStatus FROM WaveLine l 
                 LEFT JOIN Wave w ON w.WaveID = l.WaveID 
                 WHERE l.Deleted = 0
-                AND w.Deleted = 0
-                AND w.StepStatus NOT IN (''Pending'', ''Completed'')
+                AND w.Deleted = 0                
             ) w
             ON w.OrderNumber = f.OrderNumber
 
@@ -178,6 +189,7 @@ BEGIN
             WHERE f.DELETED = 0 
             AND f.OnHold = 0 
             AND f.FulfilmentStatus IN (''Fulfilment'', ''Started'')
+            AND w.StepStatus NOT IN (''Started'', ''Completed'')
             AND f.FulfilmentType = @FulfilmentType
             AND (@WarehouseCode IS NULL OR f.WarehouseCode = @WarehouseCode)
             AND (@TenantCode IS NULL OR f.TenantCode = @TenantCode)

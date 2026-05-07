@@ -6,12 +6,13 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 -- =============================================
--- Author:              <Copilot>
+-- Author:              <Nam Nguyen>
 -- Create date: <16 Apr, 2026>
 -- Description: <Set OnHold for Order/Fulfilment by array and write audit log>
 -- =============================================
 ALTER PROCEDURE [dbo].[SP_VI_TBL_OnHold_SetByOrderNumbers]
     @OrderType VARCHAR(20), -- Order | Fulfilment
+	@Reason VARCHAR(5000) = NULL,
     @OrderNumbers dbo.OrderType READONLY,
 	@OrderItems dbo.OrderLineType READONLY,
     @EditedDateTime DATETIME = NULL,
@@ -233,7 +234,7 @@ BEGIN
 			DEALLOCATE OrderNumbersCursor;
 
             INSERT INTO dbo.OnHoldOrderLog
-                ([OrderNumber], [OrderType], [LogType], [LogDate], [LogBy], [CreatedBy], [CreatedDateTime], [FirstEditedBy], [FirstEditedDateTime], [LastEditedBy], [LastEditedDateTime], [Deleted])
+                ([OrderNumber], [OrderType], [LogType], [LogDate], [LogBy], [CreatedBy], [CreatedDateTime], [FirstEditedBy], [FirstEditedDateTime], [LastEditedBy], [LastEditedDateTime], [Reason],[Deleted])
             SELECT
                 U.OrderNumber,
                 'Order',
@@ -246,6 +247,7 @@ BEGIN
                 @ActionDateTime,
                 @ActionBy,
                 @ActionDateTime,
+                @Reason,
                 0
             FROM @Updated U;
         END
@@ -254,18 +256,29 @@ BEGIN
             UPDATE F
             SET
                 F.OnHold = 1,
+				F.FulfilmentStatus = 'OnHold',
                 F.FirstEditedDateTime = COALESCE(F.FirstEditedDateTime, @ActionDateTime),
                 F.FirstEditedBy = COALESCE(F.FirstEditedBy, @ActionBy),
                 F.LastEditedDateTime = @ActionDateTime,
                 F.LastEditedBy = @ActionBy
             OUTPUT inserted.OrderNumber INTO @Updated(OrderNumber)
             FROM dbo.Fulfilment F
+			LEFT JOIN 
+			( 
+				SELECT l.OrderNumber, w.WaveNumber, w.WaveStatus , w.StepStatus
+				FROM WaveLine l 
+				LEFT JOIN Wave w ON w.WaveID = l.WaveID 
+				WHERE l.Deleted = 0
+				AND w.Deleted = 0           
+			) w 
+			ON w.OrderNumber = f.OrderNumber
             INNER JOIN @OrderNumbers N ON N.OrderNumber = F.OrderNumber
             WHERE ISNULL(F.Deleted, 0) = 0
-              AND ISNULL(F.OnHold, 0) = 0;
+              AND ISNULL(F.OnHold, 0) = 0
+			  AND w.StepStatus NOT IN ('Started', 'Completed');    
 
             INSERT INTO dbo.OnHoldOrderLog
-                ([OrderNumber], [OrderType], [LogType], [LogDate], [LogBy], [CreatedBy], [CreatedDateTime], [FirstEditedBy], [FirstEditedDateTime], [LastEditedBy], [LastEditedDateTime], [Deleted])
+                ([OrderNumber], [OrderType], [LogType], [LogDate], [LogBy], [CreatedBy], [CreatedDateTime], [FirstEditedBy], [FirstEditedDateTime], [LastEditedBy], [LastEditedDateTime], [Reason], [Deleted])
             SELECT
                 U.OrderNumber,
                 'Fulfilment',
@@ -278,6 +291,7 @@ BEGIN
                 @ActionDateTime,
                 @ActionBy,
                 @ActionDateTime,
+                @Reason,
                 0
             FROM @Updated U;
         END

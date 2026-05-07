@@ -10,7 +10,7 @@ GO
 -- Create date: <16 Apr, 2026>
 -- Description: <List OnHold Orders (Fulfilment Type) with search and paging>
 -- =============================================
-CREATE PROCEDURE [dbo].[SP_VI_TBL_OnHold_ListOnHoldFulfilments]
+ALTER PROCEDURE [dbo].[SP_VI_TBL_OnHold_ListOnHoldFulfilments]
     @WarehouseCode   VARCHAR(20)   = NULL,
     @TenantCode      VARCHAR(10)   = NULL,
     @Search          NVARCHAR(100) = NULL,
@@ -45,6 +45,7 @@ BEGIN
       AND (@WarehouseCode  IS NULL OR f.WarehouseCode  = @WarehouseCode)
       AND (@TenantCode     IS NULL OR f.TenantCode     = @TenantCode)
       AND f.FulfilmentType = 'Orders'
+      AND f.FulfilmentStatus <> 'OnHoldCleared'
             AND w.WaveID IS NOT NULL
       AND (
             @Search IS NULL OR LEN(LTRIM(RTRIM(@Search))) = 0
@@ -108,6 +109,7 @@ BEGIN
           AND (@WarehouseCode  IS NULL OR f.WarehouseCode  = @WarehouseCode)
           AND (@TenantCode     IS NULL OR f.TenantCode     = @TenantCode)
           AND f.FulfilmentType = ''Orders''
+          AND f.FulfilmentStatus <> ''OnHoldCleared''
                     AND w.WaveID IS NOT NULL
           AND (
                 @Search IS NULL OR LEN(LTRIM(RTRIM(@Search))) = 0
