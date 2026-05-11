@@ -187,6 +187,49 @@ OUTPUT: @Charge, @Currency, @ChargeType
 3. Resolves rate via `GetCostInfoOfTenantByWarehouseCode`, inserts if subscribed.
 4. `WaveReferences` is populated.
 
+#### Detailed Procedure Analysis: `SP_VI_TBL_Invoice_InsertPickingInvoice`
+
+#### Primary objective
+
+- Insert `Picking` category invoice rows for one item movement (`Tenant + Warehouse + Item + Unit + Qty`), combining charge-group billing and charge-item billing.
+
+#### Execution flow (actual behavior)
+
+1. Sets `@ChargeItemCat = 'Picking'`.
+2. Calls `SP_VI_TBL_Invoice_InsertChargeGroupInvoice` with category `Picking`.
+3. Reads item name from `dbo.Items` by `ItemNumber + TenantCode + Deleted = 0`.
+4. Opens a cursor over all active `dbo.ChargeItem` rows in group `Picking`.
+5. For each charge item, processes only when `@ItemUnit = ChargeItemUnit`.
+6. Calls `SP_VI_TBL_ChargeItem_GetCostInfoOfTenantByWarehouseCode`.
+7. Inserts into `dbo.Invoice` only when `@ChargeType IS NOT NULL`.
+
+#### Dependencies used by the procedure
+
+- `SP_VI_TBL_Invoice_InsertChargeGroupInvoice`
+- `SP_VI_TBL_ChargeItem_GetCostInfoOfTenantByWarehouseCode`
+- `dbo.Items`
+- `dbo.ChargeItem`
+- `dbo.Invoice`
+
+#### Net insert effect per single call
+
+- Can create **multiple rows**:
+  - 1 row from charge-group path (if all charge-group prerequisites are valid).
+  - 0..N rows from charge-item path (for matching units and subscribed tenant charge items).
+- Not idempotent by design: repeat calls with same references can insert duplicates.
+
+#### Current risk notes
+
+- Child message not enforced: parent does not stop when `InsertChargeGroupInvoice` returns validation text via `@Message`.
+- Partial success possible: no explicit transaction wraps the full parent workflow.
+- Null item name possible in invoice line (`ItemReferences`) if item lookup fails in parent.
+- Zero-charge invoices can still be inserted (cost lookup defaults `@Charge = 0` when charge type exists).
+- Unit matching is exact string comparison; formatting/casing variance can skip expected charges.
+
+#### Operational implication
+
+- A caller that retries this SP after timeout/interruption should assume duplicate risk unless deduplication exists upstream.
+
 ---
 
 ### 3. Packing Invoice
@@ -203,6 +246,59 @@ OUTPUT: @Charge, @Currency, @ChargeType
 
 1. Looks up `ChargeItem` with `ChargeItemGroup = 'Packing'` AND `ChargeItemUnit = 'Box'`.
 2. Resolves rate, inserts one row with `Qty = NumberOfBoxes` from `PackingResult`.
+
+#### Detailed Procedure Analysis: `SP_VI_TBL_Invoice_InsertPackingInvoice`
+
+**Primary objective**
+
+- Insert `Packing` category invoice rows for one wave/order completion, combining item-level group charges and box-level charges.
+
+**Execution flow (actual behavior)**
+
+1. Fetches `WaveNumber` from `dbo.Wave` by `WaveID + Deleted = 0`.
+2. Looks up `PackingResultID` and `NumberOfBoxes` from `dbo.PackingResult` by `WaveID + OrderNumber + Deleted = 0`.
+3. If `PackingResultID` exists:
+   - Opens cursor over `PackingResultLine` grouped by `ItemNumber`.
+   - For each item, calls `SP_VI_TBL_Invoice_InsertChargeGroupInvoice` with category `Packing`, unit `'Unit'`.
+   - Closes cursor.
+4. If `PackingResultID` is null, sets `@BoxQty = 0` (skips item-level loop).
+5. Opens cursor over `dbo.ChargeItem` where `ChargeItemGroup = 'Packing'` AND `ChargeItemUnit = 'Box'` AND `Deleted = 0`.
+6. For each charge item:
+   - Calls `SP_VI_TBL_ChargeItem_GetCostInfoOfTenantByWarehouseCode`.
+   - Inserts into `dbo.Invoice` only when `@ChargeType IS NOT NULL`.
+   - Qty is set to `@BoxQty` (NumberOfBoxes).
+
+**Dependencies used by the procedure**
+
+- `SP_VI_TBL_Invoice_InsertChargeGroupInvoice`
+- `SP_VI_TBL_ChargeItem_GetCostInfoOfTenantByWarehouseCode`
+- `dbo.Wave`
+- `dbo.PackingResult`
+- `dbo.PackingResultLine`
+- `dbo.ChargeItem`
+- `dbo.Invoice`
+
+**Net insert effect per single call**
+
+- Can create **multiple rows**:
+  - 1..N rows from item-level path (one per packed item with valid charge group setup).
+  - 0..M rows from box-level path (one per matching `Box` charge item subscribed by tenant).
+- Not idempotent: repeat calls with same wave/order can insert duplicates.
+- If `PackingResultID` is null, only box-level inserts can happen, but with `@BoxQty = 0`, resulting in zero-quantity invoices if inserted.
+
+**Current risk notes**
+
+- Item-level message not enforced: parent does not stop when `InsertChargeGroupInvoice` returns validation failure via `@Message`.
+- Partial success possible: no explicit transaction wraps the full workflow.
+- No `PackingResult` → zero item-level charges and zero-qty box charges: if procedure is called for a wave/order with no packed items, box-level charges will insert with `Qty = 0`.
+- `ItemReferences` is empty string for box-level charges, making line-item details blank.
+- Box quantity can be null in `PackingResult.NumberOfBoxes`; defaults to 0 via `COALESCE`.
+- No deduplication guard on `InvoiceReferences` or `WaveReferences` in insert statements.
+
+**Operational implication**
+
+- This procedure can be called from wave completion or manual triggers; retries should account for duplicate risk.
+- If `PackingResult` is missing (transient data loss or timing issue), the procedure will still execute but produce only box-level charges with zero quantity.
 
 **Investigation — when packing invoice is not created:**
 
@@ -341,6 +437,53 @@ Extra charge   = Tenant.ExtraOrderCost (flat amount, inserted as separate 'Extra
 - `DHL_price` comes from `DHLResponse.price` by `MessageReference`.
 - `ExtraOrderCost` is a flat per-order surcharge from `Tenant`.
 - Both are delegated to `InsertMailingInvoice`.
+
+#### Detailed Procedure Analysis: `SP_VI_TBL_Invoice_InsertMailingInvoice`
+
+**Primary objective**
+
+- Insert a single `Shipping` category invoice row with pre-calculated charge, amount, and metadata. Acts as a generic mailing/shipping invoice writer for AP/DHL and any other carrier that calculates charges upstream.
+
+**Execution flow (actual behavior)**
+
+1. If `@WaveID` is not null:
+   - Attempts to fetch `WaveNumber` from `dbo.Wave` WHERE `WaveID = @WaveID AND Deleted = 0`.
+   - **Bug note:** The query has a condition `WHERE WaveID = WaveID` which is always true and will match the first non-deleted Wave, not the intended one. Should be `WHERE WaveID = @WaveID`.
+2. If `@WaveID` is null, sets `@WaveNumber = ''`.
+3. If `@InvoiceReferences` is provided and non-empty:
+   - Uses `@InvoiceReferences` as references.
+4. Otherwise:
+   - Uses `@OrderNumber` as references.
+5. Inserts one row into `dbo.Invoice`:
+   - `ChargeType = 'Standard'`, `ChargeCategory = 'Shipping'`, `Qty = 1`, `Cost = @Charge` (passed in).
+   - `ItemReferences` is always empty string.
+
+**Dependencies used by the procedure**
+
+- `dbo.Wave` (for wave number lookup)
+- `dbo.Invoice` (insert target)
+
+**Net insert effect per single call**
+
+- Creates exactly **1 row** per call (deterministic, simple insert).
+- Not idempotent: repeat calls with same order/references will insert duplicates.
+
+**Current risk notes**
+
+- **Critical bug:** `WHERE WaveID = WaveID` condition always evaluates to true. The procedure will select the first non-deleted Wave row in the table, not the intended one. Callers relying on `WaveNumber` being correct will get incorrect values.
+- `@Charge` is passed in without validation. Caller is responsible for ensuring it's non-negative and sensible.
+- `@Currency` is passed in without validation (no check for supported currency codes).
+- `ItemReferences` is hardcoded to empty string, providing no line-item detail.
+- `@ChargeItemName` is passed in without validation; can be null or arbitrary text.
+- No check whether the order actually exists (no FK validation).
+- No check whether the wave actually exists before using `@WaveNumber`.
+
+**Operational implication**
+
+- This is a "leaf" procedure: it receives pre-calculated charges from AP/DHL parent procedures and simply writes them.
+- Do not call this directly with arbitrary `@WaveID` values; the wave lookup bug will return wrong results.
+- Callers should validate `@Charge > 0` and `@Currency` is in a known set before invoking this procedure.
+- Since there are no active callers in the SQL repo (per documentation), this procedure may be invoked from the application/integration layer; ensure the application handles the WaveID bug or passes null.
 
 ---
 
