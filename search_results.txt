@@ -1,0 +1,438 @@
+﻿--- File: StoreProcedures\dbo.SP_VI_TBL_Wave_StartWaveRequest.StoredProcedure.sql ---
+Match at line 51:
+  
+  			DECLARE @ChildItems TABLE (
+  				ItemID INT,
+  				Qty INT
+  			);
+  
+> 			IF @Operation = 'Picking'
+  			BEGIN
+  				PRINT 'Picking';
+  
+  				-- get info
+  				SELECT @WaveID = WaveID,
+  					   @PickingType = PickingType,
+--------------------
+Match at line 69:
+  					   @OperationStatus = StepStatus,
+  					   @CurrentOperation = CurrentStep
+  				FROM dbo.Wave
+  				WHERE WaveNumber = @WaveNumber AND Deleted = 0;
+  
+  			END
+> 			ELSE IF @Operation = 'Sorting'
+  			BEGIN
+  				PRINT 'Sorting';
+  
+  				-- get info
+  				SELECT @WaveID = WaveID,
+  					   @PickingType = PickingType,
+--------------------
+Match at line 86:
+  					   @OperationStatus = StepStatus,
+  					   @CurrentOperation = CurrentStep
+  				FROM dbo.Wave
+  				WHERE WaveNumber = @WaveNumber AND Deleted = 0;
+  
+  			END 
+> 			ELSE IF @Operation = 'Packing'
+  			BEGIN
+  				PRINT 'Packing';
+  
+  				-- Update  default Box ID
+  				IF @DefaultBoxID IS NOT NULL
+  				BEGIN
+--------------------
+Match at line 120:
+  					 SET @Message = 'This wave is set for auto packing, cannot start manual packing.'
+  					 ROLLBACK TRANSACTION;
+  					 RETURN;
+  				END
+  
+  			END
+> 			ELSE IF @Operation = 'Mailing'
+  			BEGIN
+  				PRINT 'Mailing';
+  
+  				-- get info
+  				SELECT @WaveID = WaveID,
+  					   @PickingType = PickingType,
+--------------------
+Match at line 154:
+  
+  			IF @WaveStatus  = 'Pending'  -- not start yet
+  			BEGIN				
+  				-- Update Wave
+  				UPDATE dbo.Wave
+  				SET
+> 					WaveStatus = 'Started',
+  					CurrentStep = @Operation,
+  					StepStatus = 'Started',
+  					FirstEditedDateTime = COALESCE(@OperationDateTime, FirstEditedDateTime),
+  					FirstEditedBy = COALESCE(@OperationBy, FirstEditedBy),
+  					LastEditedDateTime = COALESCE(@OperationDateTime, LastEditedDateTime),
+  					LastEditedBy = COALESCE(@OperationBy, LastEditedBy)
+--------------------
+Match at line 155:
+  			IF @WaveStatus  = 'Pending'  -- not start yet
+  			BEGIN				
+  				-- Update Wave
+  				UPDATE dbo.Wave
+  				SET
+  					WaveStatus = 'Started',
+> 					CurrentStep = @Operation,
+  					StepStatus = 'Started',
+  					FirstEditedDateTime = COALESCE(@OperationDateTime, FirstEditedDateTime),
+  					FirstEditedBy = COALESCE(@OperationBy, FirstEditedBy),
+  					LastEditedDateTime = COALESCE(@OperationDateTime, LastEditedDateTime),
+  					LastEditedBy = COALESCE(@OperationBy, LastEditedBy)
+  				WHERE WaveID = @WaveID AND Deleted = 0;
+--------------------
+Match at line 156:
+  			BEGIN				
+  				-- Update Wave
+  				UPDATE dbo.Wave
+  				SET
+  					WaveStatus = 'Started',
+  					CurrentStep = @Operation,
+> 					StepStatus = 'Started',
+  					FirstEditedDateTime = COALESCE(@OperationDateTime, FirstEditedDateTime),
+  					FirstEditedBy = COALESCE(@OperationBy, FirstEditedBy),
+  					LastEditedDateTime = COALESCE(@OperationDateTime, LastEditedDateTime),
+  					LastEditedBy = COALESCE(@OperationBy, LastEditedBy)
+  				WHERE WaveID = @WaveID AND Deleted = 0;
+  
+--------------------
+Match at line 183:
+  					f.LastEditedDateTime = COALESCE(@OperationDateTime, f.LastEditedDateTime),
+  					f.LastEditedBy = COALESCE(@OperationBy, f.LastEditedBy)					
+  				FROM dbo.Fulfilment as f
+  				JOIN dbo.WaveLine as wl ON f.OrderNumber = wl.OrderNumber
+  				WHERE wl.WaveID = @WaveID AND wl.Deleted = 0;
+  
+> 				/*IF @Operation = 'Picking'
+  				BEGIN
+  							
+  					DECLARE @POrderNumber VARCHAR(50);
+  					DECLARE @SlotNumber INT;
+  
+  					SET @SlotNumber = 1;
+--------------------
+Match at line 249:
+  						RETURN;
+  					END
+  					ELSE IF @OperationStatus = 'Pending'   -- Transform from previous phase
+  					BEGIN						
+  						UPDATE dbo.Wave
+  						SET							
+> 							StepStatus = 'Started',
+  							FirstEditedDateTime = COALESCE(@OperationDateTime, FirstEditedDateTime),
+  							FirstEditedBy = COALESCE(@OperationBy, FirstEditedBy),
+  							LastEditedDateTime = COALESCE(@OperationDateTime, LastEditedDateTime),
+  							LastEditedBy = COALESCE(@OperationBy, LastEditedBy)
+  						WHERE WaveID = @WaveID AND Deleted = 0;
+  
+--------------------
+Match at line 271:
+  								@ULDID INT,
+  								@TransactionQty INT,
+  								@Qty INT,
+  								@i INT;
+  
+  						-- create data
+> 						IF @Operation = 'Sorting'
+  						BEGIN
+  							-- Insert data to Sort Schedule
+  							DECLARE cur_FulfilmentItems CURSOR LOCAL FAST_FORWARD FOR
+  							SELECT 
+  								A.OrderNumber,
+  								A.SourceOrderNumber,
+--------------------
+Match at line 479:
+  								INTO @OrderNumber, @SourceOrderNumber, @ItemName, @ItemNumber, @Qty, @ItemId;
+  							END
+  
+  							CLOSE cur_FulfilmentItems;
+  							DEALLOCATE cur_FulfilmentItems;
+  
+> 						END -- End IF @Operation = 'Sorting'
+  						ELSE
+  						IF @Operation = 'Packing'
+  						BEGIN	
+  							
+  							-- Insert data to Packing Schedule
+  							If @PickingType <> 'Bulk'
+--------------------
+Match at line 481:
+  
+  							CLOSE cur_FulfilmentItems;
+  							DEALLOCATE cur_FulfilmentItems;
+  
+  						END -- End IF @Operation = 'Sorting'
+  						ELSE
+> 						IF @Operation = 'Packing'
+  						BEGIN	
+  							
+  							-- Insert data to Packing Schedule
+  							If @PickingType <> 'Bulk'
+  							BEGIN
+  
+--------------------
+Match at line 911:
+  
+  								CLOSE cur_FulfilmentItems;
+  								DEALLOCATE cur_FulfilmentItems;
+  							
+  							END
+  						END
+> 						ELSE IF @Operation = 'Mailing'
+  						BEGIN
+  							PRINT 'Create data for mailing';
+  						END
+  
+  					END
+  				END
+--------------------
+Match at line 923:
+  				END
+  				
+  
+  				IF @CurrentOperation <> @Operation				
+  				BEGIN 
+  					-- check for sorting
+> 					IF @Operation = 'Sorting'
+  					BEGIN
+  					
+  						IF @SortRequired = 0
+  						BEGIN
+  							SET @Message = 'This Wave does not need sorting phase'
+  							ROLLBACK TRANSACTION;
+--------------------
+Match at line 947:
+  							ROLLBACK TRANSACTION;
+  							RETURN;
+  						END
+  					END -- check sorting
+  
+  					-- check for packing
+> 					IF @Operation = 'Packing'
+  					BEGIN
+  
+  						IF @PackRequired = 0
+  						BEGIN
+  							SET @Message = 'This Wave does not need packing phase'
+  							ROLLBACK TRANSACTION;
+--------------------
+Match at line 983:
+  							ROLLBACK TRANSACTION;
+  							RETURN;
+  						END
+  					END -- check packing
+  
+  					-- check for packing
+> 					IF @Operation = 'Mailing'
+  					BEGIN
+  						IF @MailingRequired = 0
+  						BEGIN
+  							SET @Message = 'This Wave does not need mailing phase'
+  							ROLLBACK TRANSACTION;
+  							RETURN;
+--------------------
+Match at line 996:
+  						END		
+  					END -- check mailing
+  
+  					-- update status
+  					UPDATE dbo.Wave
+  					SET							
+> 						CurrentStep = @Operation,
+  						StepStatus = 'Started',
+  						FirstEditedDateTime = COALESCE(@OperationDateTime, FirstEditedDateTime),
+  						FirstEditedBy = COALESCE(@OperationBy, FirstEditedBy),
+  						LastEditedDateTime = COALESCE(@OperationDateTime, LastEditedDateTime),
+  						LastEditedBy = COALESCE(@OperationBy, LastEditedBy)
+  					WHERE WaveID = @WaveID AND Deleted = 0;
+--------------------
+Match at line 997:
+  					END -- check mailing
+  
+  					-- update status
+  					UPDATE dbo.Wave
+  					SET							
+  						CurrentStep = @Operation,
+> 						StepStatus = 'Started',
+  						FirstEditedDateTime = COALESCE(@OperationDateTime, FirstEditedDateTime),
+  						FirstEditedBy = COALESCE(@OperationBy, FirstEditedBy),
+  						LastEditedDateTime = COALESCE(@OperationDateTime, LastEditedDateTime),
+  						LastEditedBy = COALESCE(@OperationBy, LastEditedBy)
+  					WHERE WaveID = @WaveID AND Deleted = 0;
+  
+--------------------
+Match at line 1010:
+  					-- create data
+  
+  
+  				END -- end @CurrentOperation <> @Operation		
+  
+  				--return data
+> 				IF @Operation = 'Picking'
+  				BEGIN
+  									
+  					/*select * 
+  					FROM dbo.PickingSchedule AS ps
+  					JOIN dbo.Fulfilment AS f
+  						ON f.order_number = ps.FulfilmentOrder
+--------------------
+Match at line 1039:
+  					LEFT JOIN dbo.Wave w 
+  						ON w.WaveID = s.WaveID 
+  					   AND w.Deleted = 0
+  					WHERE s.WaveID = @WaveID  AND s.Deleted = 0;
+  
+  				END
+> 				ELSE IF @Operation = 'Sorting'
+  				BEGIN
+  					SELECT  
+  						s.SortingScheduleID AS SortingID,
+  						w.WaveNumber,
+  						s.OrderNumber,
+  						CASE 
+--------------------
+Match at line 1064:
+  					   AND w.Deleted = 0
+  					WHERE s.WaveID = @WaveID 
+  					  AND s.Deleted = 0;
+  
+  				END
+  				ELSE
+> 				IF @Operation = 'Packing'
+  				BEGIN
+  
+  					CREATE TABLE #TmpPackingInfo
+  					(
+  						WaveNumber      VARCHAR(50),
+  						OrderNumber     VARCHAR(50),
+--------------------
+Match at line 1164:
+  								WHERE f.Deleted = 0 AND f.OrderNumber = s.OrderNumber
+  						);
+  
+  					SELECT * FROM #TmpPackingInfo;
+  					
+  				END
+> 				ELSE IF @Operation = 'Mailing'
+  				BEGIN
+  					PRINT 'Create data for mailing';
+  				END
+  
+  
+  				
+--------------------
+--- File: StoreProcedures\dbo.SP_VI_TBL_Manifest_UpdateManifest.StoredProcedure.sql ---
+Match at line 97:
+  				SELECT @StepStatus = StepStatus
+  				FROM dbo.Wave
+  				WHERE WaveID = @WaveID;
+  
+  				IF @StepStatus = 'Pending'
+  				BEGIN
+> 					UPDATE dbo.Wave
+  					SET						
+  						StepStatus = 'Started',					
+  						FirstEditedDateTime = COALESCE(@EditedDateTime, FirstEditedDateTime),
+  						FirstEditedBy = COALESCE(@EditedBy, FirstEditedBy),
+  						LastEditedDateTime = COALESCE(@EditedDateTime, LastEditedDateTime),
+  						LastEditedBy = COALESCE(@EditedBy, LastEditedBy)					
+--------------------
+Match at line 99:
+  				WHERE WaveID = @WaveID;
+  
+  				IF @StepStatus = 'Pending'
+  				BEGIN
+  					UPDATE dbo.Wave
+  					SET						
+> 						StepStatus = 'Started',					
+  						FirstEditedDateTime = COALESCE(@EditedDateTime, FirstEditedDateTime),
+  						FirstEditedBy = COALESCE(@EditedBy, FirstEditedBy),
+  						LastEditedDateTime = COALESCE(@EditedDateTime, LastEditedDateTime),
+  						LastEditedBy = COALESCE(@EditedBy, LastEditedBy)					
+  					WHERE WaveID = @WaveID;
+  				END
+--------------------
+Match at line 107:
+  						FirstEditedBy = COALESCE(@EditedBy, FirstEditedBy),
+  						LastEditedDateTime = COALESCE(@EditedDateTime, LastEditedDateTime),
+  						LastEditedBy = COALESCE(@EditedBy, LastEditedBy)					
+  					WHERE WaveID = @WaveID;
+  				END
+  			
+> 				UPDATE dbo.WaveLine
+  				SET						
+  					MailStatus = 'Completed',					
+  					FirstEditedDateTime = COALESCE(@EditedDateTime, FirstEditedDateTime),
+  					FirstEditedBy = COALESCE(@EditedBy, FirstEditedBy),
+  					LastEditedDateTime = COALESCE(@EditedDateTime, LastEditedDateTime),
+  					LastEditedBy = COALESCE(@EditedBy, LastEditedBy),
+--------------------
+Match at line 164:
+  
+  			SELECT @NumberOfCompletedMailing = COUNT(*)  
+  			FROM WaveLine where WaveID = @WaveID AND Deleted = 0 AND MailStatus = 'Completed';
+  
+  			IF @NumberOfCompletedPacking <> 0 AND @NumberOfCompletedPacking = @NumberOfCompletedMailing
+  			BEGIN
+> 				UPDATE dbo.Wave
+  				SET
+  					WaveStatus = 'Completed',					
+  					StepStatus = 'Completed',
+  					FirstEditedDateTime = COALESCE(@EditedDateTime, FirstEditedDateTime),
+  					FirstEditedBy = COALESCE(@EditedBy, FirstEditedBy),
+  					LastEditedDateTime = COALESCE(@EditedDateTime, LastEditedDateTime),
+--------------------
+Match at line 166:
+  			FROM WaveLine where WaveID = @WaveID AND Deleted = 0 AND MailStatus = 'Completed';
+  
+  			IF @NumberOfCompletedPacking <> 0 AND @NumberOfCompletedPacking = @NumberOfCompletedMailing
+  			BEGIN
+  				UPDATE dbo.Wave
+  				SET
+> 					WaveStatus = 'Completed',					
+  					StepStatus = 'Completed',
+  					FirstEditedDateTime = COALESCE(@EditedDateTime, FirstEditedDateTime),
+  					FirstEditedBy = COALESCE(@EditedBy, FirstEditedBy),
+  					LastEditedDateTime = COALESCE(@EditedDateTime, LastEditedDateTime),
+  					LastEditedBy = COALESCE(@EditedBy, LastEditedBy)
+  				WHERE WaveID = @WaveID AND Deleted = 0;
+--------------------
+--- File: StoreProcedures\dbo.SP_VI_TBL_Fulfilment_ListAvailableMailingFulfilmentOrders.StoredProcedure.sql ---
+Match at line 60:
+  					wl.OrderNumber, 
+  					wl.SourceOrderNumber
+  				FROM dbo.WaveLine wl
+  				INNER JOIN dbo.Wave w 
+  					ON w.WaveID = wl.WaveID 
+  				   AND w.Deleted = 0
+> 				WHERE w.CurrentStep = 'Mailing' 
+  				  AND w.StepStatus IN ('Pending', 'Started')
+  				  AND w.WaveType = 'Orders'
+  				  AND wl.PackStatus = 'Completed'
+  				  AND wl.PickStatus = 'Completed'
+  				  AND (wl.MailStatus IS NULL OR wl.MailStatus <> 'Completed')
+  				  AND (
+--------------------
+Match at line 220:
+  					wl.OrderNumber, 
+  					wl.SourceOrderNumber
+  				FROM dbo.WaveLine wl
+  				INNER JOIN dbo.Wave w 
+  					ON w.WaveID = wl.WaveID 
+  				   AND w.Deleted = 0
+> 				WHERE w.CurrentStep = 'Mailing' 
+  				  AND w.StepStatus IN ('Pending', 'Started')
+  				  AND w.WaveType = 'Orders'
+  				  AND wl.PackStatus = 'Completed'
+  				  AND wl.PickStatus = 'Completed'
+  				  AND (wl.MailStatus IS NULL OR wl.MailStatus <> 'Completed')
+  				  AND (
+--------------------

@@ -3,9 +3,19 @@ USE [3PLWMS_QA]
 GO
 
 
-DECLARE @WaveId INT = 404;
-DECLARE @TenantCode NVARCHAR(50) = 'pepprb';
-DECLARE @TransactionType NVARCHAR(50) = 'Picked';--'Allocated';
+DECLARE @WaveId INT = NULL;
+DECLARE @WaveNumber NVARCHAR(50) = '484';
+DECLARE @TenantCode NVARCHAR(50) = 'YENAURA';--'YENAURA';--'ATKGEAR';
+DECLARE @TransactionType NVARCHAR(50) = 'Picked'; --'Picked';--'Allocated';
+
+IF @WaveId IS NOT NULL
+BEGIN
+    select @WaveNumber = WaveNumber from Wave Where waveId = @WaveId and Deleted = 0;
+END
+ELSE
+BEGIN
+    select @WaveId = WaveID from Wave Where WaveNumber = @WaveNumber and Deleted = 0;
+END
 
 SELECT 'Wave Information';
 select * from Wave Where waveId = @WaveId and Deleted = 0
@@ -35,6 +45,9 @@ group by ItemName
 
 select * from PickingSchedule Where WaveID = @WaveId and Deleted = 0
 
+Select 'Picking Result Information';
+select * from PickingResult Where Deleted = 0 AND PickingScheduleID IN (select PickingScheduleID from PickingSchedule Where WaveID = @WaveId and Deleted = 0);
+
 Select 'Sorting Schedule Information';
 
 select * from SortingSchedule Where WaveID = @WaveId and Deleted = 0
@@ -44,6 +57,8 @@ Select 'Packing Information';
 select * from PackingSchedule Where WaveID = @WaveId and Deleted = 0
 
 select * from PackingResult Where WaveID = @WaveId and Deleted = 0
+
+select * from PackingResultLine Where PackingResultID IN (select PackingResultID from PackingResult Where WaveID = @WaveId and Deleted = 0) and Deleted = 0
 
 Select 'ULD Line Information';
 Select u.TenantCode, ul.ItemName, Sum(ul.TransactionQty) 
@@ -62,3 +77,13 @@ Where ul.TransactionReference IN (
     select SourceOrderNumber from WaveLine Where waveId = @WaveId and Deleted = 0
     ) 
     and ul.Deleted = 0 AND ul.TransactionType=@TransactionType And u.TenantCode = @TenantCode
+
+
+Select 'Picking Invoice Information';
+Select * from Invoice Where WaveReferences = @WaveNumber And ChargeCategory ='Picking' and Deleted = 0 order by InvoiceReferences;
+
+Select 'Packing Invoice Information';
+Select * from Invoice Where WaveReferences = @WaveNumber And ChargeCategory ='Packing' and Deleted = 0 order by InvoiceReferences;
+
+Select 'Shipping Invoice Information';
+Select * from Invoice Where WaveReferences = @WaveNumber And ChargeCategory ='Mailing' and Deleted = 0 order by InvoiceReferences;

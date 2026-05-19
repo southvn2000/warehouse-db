@@ -10,7 +10,7 @@ GO
 -- Create date: <24 Mar, 2026>
 -- Description: <Update CMC shipment info by wave and source order number>
 -- =============================================
-CREATE PROCEDURE [dbo].[SP_VI_TBL_Wave_UpdateShippmentInfoForWave]
+ALTER PROCEDURE [dbo].[SP_VI_TBL_Wave_UpdateShippmentInfoForWave]
     @CMCResults dbo.CMCResult READONLY,
     @OperationDateTime DATETIME = NULL,
     @OperationBy VARCHAR(100)
@@ -19,6 +19,8 @@ BEGIN
     SET NOCOUNT ON;
 
     BEGIN TRY
+
+        BEGIN TRANSACTION;
 
         DECLARE @UpdatedRows TABLE
         (
@@ -117,6 +119,28 @@ BEGIN
                 AND ISNULL(c.Deleted, 0) = 0
         WHERE ISNULL(wl.Deleted, 0) = 0
             AND c.Status = 'Canceled';
+
+        -- Update complete the fulfilment if the order status is completed in CMC results, so that the completed order will not be included in the next picking/packing process, and update shipment info for the completed orders as well
+        UPDATE f
+        SET
+            f.FulfilmentStatus = 'Completed',
+            f.FirstEditedDateTime = COALESCE(@OperationDateTime, f.FirstEditedDateTime),
+            f.FirstEditedBy = COALESCE(@OperationBy, f.FirstEditedBy),
+            f.LastEditedDateTime = COALESCE(@OperationDateTime, f.LastEditedDateTime),
+            f.LastEditedBy = COALESCE(@OperationBy, f.LastEditedBy)
+        FROM dbo.Fulfilment f
+        INNER JOIN dbo.WaveLine wl
+            ON wl.OrderNumber = f.OrderNumber
+           AND ISNULL(wl.Deleted, 0) = 0
+        INNER JOIN @UpdatedRows u
+            ON u.WaveNumber = wl.WaveNumber
+           AND u.FulfilmentNumber = wl.OrderNumber
+        INNER JOIN dbo.CMCPackingWaveResult c
+            ON c.WaveNumber = u.WaveNumber
+           AND c.MatchLab = u.FulfilmentNumber
+           AND ISNULL(c.Deleted, 0) = 0
+        WHERE ISNULL(f.Deleted, 0) = 0
+                    AND c.Status = 'Completed';   
 
         -- Update fulfilment status to Error for the orders which are marked as failed/canceled in CMC results, so that the issue can be easily identified and tracked in the system
         UPDATE f
@@ -228,7 +252,30 @@ BEGIN
            AND u.Carrier LIKE 'AP%'
            AND ISNULL(u.IsLocal, 0) = 0
         WHERE ISNULL(apInt.Deleted, 0) = 0;
-        
+
+        -- Insert mailing/packing invoice for completed orders
+        DECLARE @CompletedOrderNumbers dbo.StringArray;
+        DECLARE @InvoiceMessage VARCHAR(4000);
+
+        INSERT INTO @CompletedOrderNumbers ([Value])
+        SELECT DISTINCT u.FulfilmentNumber
+        FROM @UpdatedRows u
+        INNER JOIN dbo.CMCPackingWaveResult c
+            ON c.WaveNumber = u.WaveNumber
+           AND c.MatchLab = u.FulfilmentNumber
+           AND ISNULL(c.Deleted, 0) = 0
+        WHERE c.Status = 'Completed';
+
+        IF EXISTS (SELECT 1 FROM @CompletedOrderNumbers)
+        BEGIN
+            EXEC [dbo].[SP_VI_TBL_Invoice_InsertCMCPackingInvoice]
+                @OrderNumbers = @CompletedOrderNumbers,
+                @CreatedDateTime = @OperationDateTime,
+                @CreatedBy = @OperationBy,
+                @Message = @InvoiceMessage OUTPUT;
+        END
+
+        COMMIT TRANSACTION;        
 
         SELECT
             c.ShipmentID,
@@ -265,6 +312,12 @@ BEGIN
                 WHERE c.Status = 'Completed';
     END TRY
     BEGIN CATCH
+
+        IF @@TRANCOUNT > 0
+        BEGIN
+            ROLLBACK TRANSACTION;
+        END 
+
         DECLARE @ErrorMessage NVARCHAR(4000);
         DECLARE @ErrorSeverity INT;
         DECLARE @ErrorState INT;

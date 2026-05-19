@@ -834,6 +834,7 @@
 | `dbo.SP_VI_TBL_Tenant_UnLockTenant` | Unlock a tenant account |
 | `dbo.SP_VI_TBL_Tenant_UpdateTenant` | Update tenant details |
 | `dbo.SP_VI_TBL_Tenant_ViewAllTenantIntegration` | View all integrations for a tenant |
+| `dbo.SP_VI_TBL_Tenant_ViewTenantIntegrationByTenantAndWarehouse` | View a tenant integration by tenant and warehouse |
 | `dbo.SP_VI_TBL_Tenant_ViewTenant` | View a single tenant |
 | `dbo.SP_VI_TBL_Tenant_ViewTenantLockInfo` | View tenant lock info |
 
