@@ -1,9 +1,9 @@
 # Stored Procedures Index
 
-**Total:** 562 stored procedures  
+**Total:** 565 stored procedures  
 **Schema:** `dbo`  
 **Database:** `3PLWMS_Developers`  
-**Last Script Date:** 3 February 2026
+**Last Script Date:** 20 May 2026
 
 ---
 
@@ -627,6 +627,9 @@
 | `dbo.SP_VI_TBL_Report_RunReportOfReceivingReceipt` | Run report for receiving receipt |
 | `dbo.SP_VI_TBL_Report_UpdateReport` | Update a report |
 | `dbo.SP_VI_TBL_Report_ViewReport` | View a single report |
+| `dbo.SP_VI_TBL_BackupReport_InsertBackupReport` | Insert a backup report |
+| `dbo.SP_VI_TBL_BackupReport_ViewBackupReportByID` | View a backup report by ID |
+| `dbo.SP_VI_TBL_BackupReport_ViewBackupReportByTenantAndBackupDate` | View backup reports by tenant, warehouse, report name, and backup date |
 | `dbo.SP_VI_TBL_ReportWidget_ListAllReportWidgets` | List all report widgets |
 
 ---

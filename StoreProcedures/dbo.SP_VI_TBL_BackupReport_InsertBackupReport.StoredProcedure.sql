@@ -10,8 +10,10 @@ GO
 -- Create date: <05 May, 2026>
 -- Description: <Insert Backup Report>
 -- =============================================
-CREATE PROCEDURE [dbo].[SP_VI_TBL_BackupReport_InsertBackupReport]
+ALTER PROCEDURE [dbo].[SP_VI_TBL_BackupReport_InsertBackupReport]
     @TenantCode VARCHAR(10),
+    @WarehouseCode VARCHAR(10),
+    @ReportName VARCHAR(100),
     @BackupDate DATETIME,
     @ExcelFileContent VARBINARY(MAX),
     @CreatedDateTime DATETIME = NULL,
@@ -31,6 +33,8 @@ BEGIN
             TenantCode,
             BackupDate,
             ExcelFileContent,
+            WarehouseCode,
+            ReportName,
             Deleted,
             CreatedDateTime,
             CreatedBy
@@ -40,6 +44,8 @@ BEGIN
             @TenantCode,
             @BackupDate,
             @ExcelFileContent,
+            @WarehouseCode,
+            @ReportName,
             0,
             COALESCE(@CreatedDateTime, GETDATE()),
             @CreatedBy

@@ -1,12 +1,15 @@
 
-USE [3PLWMS_QA]
+USE [3PLWMS_DEVELOPERS]
 GO
 
 
-DECLARE @WaveId INT = NULL;
-DECLARE @WaveNumber NVARCHAR(50) = '484';
-DECLARE @TenantCode NVARCHAR(50) = 'YENAURA';--'YENAURA';--'ATKGEAR';
-DECLARE @TransactionType NVARCHAR(50) = 'Picked'; --'Picked';--'Allocated';
+
+
+DECLARE @WaveId INT;;
+DECLARE @WaveNumber NVARCHAR(50) = '996';
+DECLARE @TenantCode NVARCHAR(50) = 'ATKGEAR';--'YENAURA';--'ATKGEAR';
+DECLARE @TransactionType NVARCHAR(50) = 'Allocated'; --'Picked';--'Allocated';
+DECLARE @OrderNumber NVARCHAR(50) = '3979';
 
 IF @WaveId IS NOT NULL
 BEGIN
@@ -16,6 +19,9 @@ ELSE
 BEGIN
     select @WaveId = WaveID from Wave Where WaveNumber = @WaveNumber and Deleted = 0;
 END
+
+SELECT PackingResultID as 'a'
+		FROM dbo.PackingResult WHERE WaveID = 937 AND OrderNumber = @OrderNumber AND Deleted = 0;	
 
 SELECT 'Wave Information';
 select * from Wave Where waveId = @WaveId and Deleted = 0
@@ -58,7 +64,9 @@ select * from PackingSchedule Where WaveID = @WaveId and Deleted = 0
 
 select * from PackingResult Where WaveID = @WaveId and Deleted = 0
 
-select * from PackingResultLine Where PackingResultID IN (select PackingResultID from PackingResult Where WaveID = @WaveId and Deleted = 0) and Deleted = 0
+select * from PackingResultLine Where PackingResultID IN (select PackingResultID from PackingResult Where WaveID = @WaveId and Deleted = 0) and Deleted = 0;
+
+select * from CMCPackingWaveResult Where WaveNumber = @WaveNumber and Deleted = 0
 
 Select 'ULD Line Information';
 Select u.TenantCode, ul.ItemName, Sum(ul.TransactionQty) 

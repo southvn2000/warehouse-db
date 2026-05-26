@@ -188,8 +188,8 @@ BEGIN
                 DECIMAL(18, 2),
                 ROUND
                 (
-                    COALESCE(TRY_CONVERT(DECIMAL(18, 6), r.Box_Weight), 0)
-                    + COALESCE(TRY_CONVERT(DECIMAL(18, 6), r.Weight_Carton), 0),
+                    COALESCE(TRY_CONVERT(DECIMAL(18, 6), r.Box_Weight), 0),
+                    --+ COALESCE(TRY_CONVERT(DECIMAL(18, 6), r.Weight_Carton), 0),
                     2
                 )
             )

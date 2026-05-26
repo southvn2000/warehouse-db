@@ -8,6 +8,8 @@ GO
 CREATE TABLE [dbo].[BackupReport](
 	[BackupReportID] [int] IDENTITY(1,1) NOT NULL,
 	[TenantCode] [varchar](10) NULL,
+	[ReportName] [varchar](100) NULL,
+	[WarehouseCode] [varchar](10) NULL,
 	[BackupDate] [datetime] NULL,
 	[ExcelFileContent] [varbinary](max) NULL,
 	[Deleted] [bit] NULL,
