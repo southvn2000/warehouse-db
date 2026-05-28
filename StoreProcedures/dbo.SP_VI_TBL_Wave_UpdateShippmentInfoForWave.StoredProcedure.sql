@@ -266,15 +266,6 @@ BEGIN
            AND ISNULL(c.Deleted, 0) = 0
         WHERE c.Status = 'Completed';
 
-        IF EXISTS (SELECT 1 FROM @CompletedOrderNumbers)
-        BEGIN
-            EXEC [dbo].[SP_VI_TBL_Invoice_InsertCMCPackingInvoice]
-                @OrderNumbers = @CompletedOrderNumbers,
-                @CreatedDateTime = @OperationDateTime,
-                @CreatedBy = @OperationBy,
-                @Message = @InvoiceMessage OUTPUT;
-        END
-
         COMMIT TRANSACTION;        
 
         SELECT

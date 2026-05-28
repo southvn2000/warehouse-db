@@ -6,7 +6,7 @@ GO
 
 
 DECLARE @WaveId INT;;
-DECLARE @WaveNumber NVARCHAR(50) = '996';
+DECLARE @WaveNumber NVARCHAR(50) = '1005';
 DECLARE @TenantCode NVARCHAR(50) = 'ATKGEAR';--'YENAURA';--'ATKGEAR';
 DECLARE @TransactionType NVARCHAR(50) = 'Allocated'; --'Picked';--'Allocated';
 DECLARE @OrderNumber NVARCHAR(50) = '3979';
@@ -19,9 +19,6 @@ ELSE
 BEGIN
     select @WaveId = WaveID from Wave Where WaveNumber = @WaveNumber and Deleted = 0;
 END
-
-SELECT PackingResultID as 'a'
-		FROM dbo.PackingResult WHERE WaveID = 937 AND OrderNumber = @OrderNumber AND Deleted = 0;	
 
 SELECT 'Wave Information';
 select * from Wave Where waveId = @WaveId and Deleted = 0

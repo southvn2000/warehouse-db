@@ -65,7 +65,7 @@ BEGIN
     WHERE (br.Deleted = 0 OR br.Deleted IS NULL)
         AND (@NormalizedTenantCode IS NULL OR br.TenantCode = @NormalizedTenantCode)
         AND (@NormalizedWarehouseCode IS NULL OR br.WarehouseCode = @NormalizedWarehouseCode)
-        AND (@NormalizedReportName IS NULL OR br.ReportName = @NormalizedReportName)
+        AND (@NormalizedReportName IS NULL OR br.ReportName LIKE @NormalizedReportName + '%')
         AND (@BackupDateFrom IS NULL OR (br.BackupDate >= @BackupDateFrom AND br.BackupDate < @BackupDateTo))
         AND (
             @NormalizedSearch IS NULL
@@ -91,7 +91,7 @@ BEGIN
         WHERE (br.Deleted = 0 OR br.Deleted IS NULL)
             AND (@NormalizedTenantCode IS NULL OR br.TenantCode = @NormalizedTenantCode)
             AND (@NormalizedWarehouseCode IS NULL OR br.WarehouseCode = @NormalizedWarehouseCode)
-            AND (@NormalizedReportName IS NULL OR br.ReportName = @NormalizedReportName)
+            AND (@NormalizedReportName IS NULL OR br.ReportName LIKE  + @NormalizedReportName + ''%'')
             AND (@BackupDateFrom IS NULL OR (br.BackupDate >= @BackupDateFrom AND br.BackupDate < @BackupDateTo))
             AND (
                 @NormalizedSearch IS NULL
